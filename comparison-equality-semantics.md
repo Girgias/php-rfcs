@@ -2,13 +2,9 @@
 
 1555 start 1725 end 1h30 total
 
-
-
 PHP is a programing language that will coerce types in various situations, one such situation is comparisons. Although this is a well known issue within the language and the community has moved towards using identity checks (``===``) instead of equality checks (``==``) to work around this surprising behaviour, there does not exist comparison operators (``<``, ``>``, ``<=``, ``>=``) which do not engage in type coercions.
 
 https://wiki.php.net/rfc/strict_operators
-
-
 
 Great than/less than operator execution order to check and do
 
@@ -16,17 +12,9 @@ Moreover, the behaviour of both equality and comparison operators can be overloa
 
 This RFC will give an overview of the current semantics and behaviour of the comparison/equality operators, a new set of proposed semantics, its implication for userland and internal extensions, a BC impact analysis of the proposal, and future proposals which are enabled by this RFC.
 
-
-
 Note: when we are talking about equating we mean the operators ``==``, ``!=``, and ``<>``, when the word comparison, compare is used we mean the operators ``<``, ``>``, ``>=``, ``=<``.
 
-
-
 ## Current semantics and behaviour
-
-
-
-
 
 ## Proposed semantics
 
@@ -77,10 +65,8 @@ Comparing two objects
 - ``true`` is only equatable with itself
 
 - ``false`` is only equatable with itself
-
-- 
-
-
+  
+  
 
 ## Userland and Internal implication
 
@@ -109,11 +95,7 @@ New ``fcmp(float $left, float $right, float $epsilon = EPSILON)`` function
 
 New opcode for ``>`` / ``>=`` 
 
-
-
 ## BC impact analysis
-
-
 
 ## Future proposals enabled by this RFC
 
@@ -126,8 +108,6 @@ Note adding support for userland object comparisons is a pre-requisite for a ran
 ### Spaceship operator to return Uncomparable as a value <=>
 
 By using the new ComparisonEnum, BC compatible for userland compare callbacks to use ``int|ComparisonEnum`` return type. Only in next major version.
-
-
 
 # Version
 
