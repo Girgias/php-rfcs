@@ -80,6 +80,12 @@ Finally, we consider there to exist the standard eight (8) built-in types in PHP
 
 - objects
 
+
+
+Note: the behaviour of integer strings used as offsets for arrays being automatically converted to `int` is out of scope of this RFC.
+
+
+
 ## Current behaviour
 
 Considering the large possible combination of containers, offsets, and operations we will start by explaining the current behaviour of certain categories of containers.
@@ -112,8 +118,6 @@ Cannot unset offset in a non-array variable
 
 - For existence operations, no warning is emitted and the behaviour is as if the offset did not exist.
 
-
-
 #### Classes that do not implement ArrayAccess and Internal objects which do not implement any dimension object handler
 
 For every single operation, regardless of the type of the offset, the following ``Error`` is emitted:
@@ -124,17 +128,96 @@ Cannot use object of type ClassName as array
 
 
 
-### Container types that auto-vivify to array
+### null type as container
 
-Both `null` and `false` will be automatically converted to an array when trying to write to an offset. This behaviour for ``false`` has been deprecated in RFC LINK
+PHP supports a feature called auto-vivification to array when writting to an offset when the container is of type ``null``.
+
+Therefore the behaviour depending on the operator is as follows:
+
+- For read operations,`null` is returned, the container continues to be `null`, and the followin warning is emitted:
+
+```
+Warning: Trying to access array offset on null
+```
+
+- For write, and appending operations the container is converted to array. And thus behave like an array, meaning the behaviour depends on the offset type. Please see the array section for details.
+
+- For read-write operations, the container is converted to array, before the read operation. And thus behave like an array, meaning the behaviour depends on the offset type. Please see the array section for details.
+
+- For the unset operation, the container continues to be `null` and no warning or error is emitted/thrown.
+
+- For existence operations, no warning is emitted and the behaviour is as if the offset did not exist.
+
+### false as container
+
+PHP also supports auto-vivification to array for `false` containers, however this was deprecated in PHP 8.1 LINK TO RFC.
 
 
 
-TODO DESCRIBE IN DETAILS THE WARNINGS
+Therefore the behaviour depending on the operator is as follows:
+
+- For read operations,`null` is returned, the container continues to be `false`, and the followin warning is emitted:
+
+```
+Warning: Trying to access array offset on false
+```
+
+- For write, and appending operations the container is converted to array,
+  Emitting the following deprecation notice:
+  ```
+  Deprecated: Automatic conversion of false to array is deprecated
+  ```
+  And thus behave like an array, meaning the behaviour depends on the offset type. Please see the array section for details.
+
+- For read-write operations, the container is converted to array, before the read operation,
+  Emitting the following deprecation notice:`Deprecated: Automatic conversion of false to array is deprecated`
+  And thus behave like an array, meaning the behaviour depends on the offset type. Please see the array section for details.
+
+- For the unset operation, the container continues to be `false` and the following deprecation notice is emitted:
+  
+  ```
+  Deprecated: Automatic conversion of false to array is deprecated
+  ```
+
+- For existence operations, no warning is emitted and the behaviour is as if the offset did not exist.
 
 
 
 ### Arrays
+
+Arrays are the ubiquitious container type in PHP and support all of the operations, thus the behaviour is only affected by the type of offsets used.
+
+#### Valid offsets
+
+Arrays in PHP accepts offstes of either type int or string and in those cases the behaviour is as expected.
+
+One thing to note is that when attempting to read an undefined offset the following warning is emitted:
+
+```
+Warning: Undefined array key KEY_NAME
+```
+
+
+
+#### Offset types cast to int
+
+The following offset types are cast to int silently:
+
+- `false` is cast to 0
+
+- `true` is cast to 1
+
+- Non fractional floating point numbers which fit in an int are cast to their int value
+  
+  
+
+TODO resources
+
+TODO float that do not fit in an int
+
+#### Offset types cast to string
+
+#### Invalid offsets
 
 ### Strings
 
