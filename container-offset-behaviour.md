@@ -208,18 +208,52 @@ The following offset types are cast to int silently:
 - `true` is cast to 1
 
 - Non fractional floating point numbers which fit in an int are cast to their int value
-  
-  
 
-TODO resources
+Offsets of type resource are cast to int with the following warning:
 
-TODO float that do not fit in an int
+```
+Warning: Resource ID#%d used as offset, casting to integer (%d)
+```
+
+Offsets of type float that are fractional, non-finite, or do not fit in an integer are cast to int with the following deprecation notice:
+
+```
+Deprecated: Implicit conversion from float %F to int loses precision
+```
+
+
 
 #### Offset types cast to string
 
+- ``null`` is cast to an empty string
+
 #### Invalid offsets
 
+The following offset types are invalid offsets types for arrays:
+
+-  arrays
+
+- objects
+
+The behaviour is identical for all operations except existence checks with ``isset()``/``empty()``.
+
+Generally the following error is thrown:
+
+```
+Cannot access offset of type TYPE on array
+```
+
+For ``isset()`` and ``empty()`` the following error is thrown:
+
+```
+Cannot access offset of type TYPE in isset or empty
+```
+
+
+
 ### Strings
+
+TODO it is a mess    
 
 ### Internal objects
 
