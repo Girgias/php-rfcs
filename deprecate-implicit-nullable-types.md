@@ -1,4 +1,4 @@
-# PHP RFC: Deprecate implicit nullable parameter types
+# PHP RFC: Deprecate implicitly nullable parameter types
 
 - Version: 0.1
 - Date: 2023-12-20
@@ -29,7 +29,7 @@ function foo(T1 $a, T2 $b = null, T3 $c) {}
 ```
 which appears to suggest an optional parameter before a required one.
 Even though signatures which contain an optional parameter before a required one were [deprecated in PHP 8.0](https://github.com/php/php-src/pull/5067),
-the case of implicit nullable types was left alone at that time due to BC concerns.
+the case of implicitly nullable types was left alone at that time due to BC concerns.
 This exclusion caused some bugs in the detection of which signatures should emit the deprecation notice.
 Indeed, the following signature only emits a deprecation as of [PHP 8.1](https://github.com/php/php-src/commit/c939bd2f10b41bced49eb5bf12d48c3cf64f984a):
 ```php
@@ -47,10 +47,10 @@ which actually allowed calls to such functions in 8.0, but this was [corrected i
 Therefore, as of PHP 8.1, any parameter that has a default value prior to a required one is effectively a required parameter,
 and will throw an `ArgumentCountError` exception if the parameter is not provided,
 be that positionally or via a named argument.
-In consequence, support for implicit nullable types already causes confusions about what should be permitted and what should not. 
+In consequence, support for implicitly nullable types already causes confusions about what should be permitted and what should not.
 
 
-Another issue with implicit nullable types is in relation to inheritance.
+Another issue with implicitly nullable types is in relation to inheritance.
 It is rather confusing that if a child class has the exact same type signature as the parent,
 but a different default value, this would cause an LSP violation error to be thrown.
 
@@ -60,14 +60,14 @@ This was fixed as part of the introduction of [nullable types](https://wiki.php.
 
 As demonstrated, supporting this "feature" not only causes confusion
 for userland, but is also a source of bugs and unneeded complexity within the engine which needs to handle its edge cases
-(e.g. to promote an implicit nullable intersection type to a DNF type).
+(e.g. to promote an implicitly nullable intersection type to a DNF type).
 
-Implicit nullable types were added to work around the limitations of PHP 5's primitive type declaration system;
+implicitly nullable types were added to work around the limitations of PHP 5's primitive type declaration system;
 as those limitations do not exist anymore, we propose to deprecate this feature.
 
 ## Proposal
 
-Deprecate implicit nullable types which are written with the following signature:
+Deprecate implicitly nullable types which are written with the following signature:
 ```php
 function foo(T $var = null) {}
 ```
@@ -78,7 +78,7 @@ Deprecated: Implicitly marking parameter $var as nullable is deprecated, the exp
 
 ## Backward Incompatible Changes
 
-Using an implicit nullable type will emit a deprecation notice.
+Using an implicitly nullable type will emit a deprecation notice.
 
 There exist a variety of userland tools to automatically update implicit
 nullable types to explicit nullable types.
