@@ -17,19 +17,20 @@ However, it has been possible to use [scalar type declarations](https://wiki.php
 the [`callable` type](https://wiki.php.net/rfc/callable) as of PHP 5.4, `array` as of PHP 5.1, and class types as of PHP 5.0.
 
 As it was impossible to have a default value for such types,
-PHP 5.1 made it possible to use `null` (and only `null`) as a default value for such type and making the type implicitly nullable.
+PHP 5.1 made it possible to use `null` (and only `null`) as a default value for such type and making these types implicitly nullable.
 
-However, those semantics are confusing and conflict with other language rules.
-It is confusing because the type declaration can "lie" as to what it actually accepts.
+However, the imlicit nullable semantics are confusing and conflict with other
+language rules, in particular because type declarations of these types can be
+misleading as to what types they actually accept.
 
-Furthermore, this syntax still permits to have signatures such as:
+Furthermore, this syntax still permits signatures such as:
 ```php
 function foo(T1 $a, T2 $b = null, T3 $c) {}
 ```
-Which suggest an optional parameters before a required one.
-However, signatures which contain an optional parameter before a required one were [deprecated in PHP 8.0](https://github.com/php/php-src/pull/5067),
-but the case of implicit nullable types was left alone due to BC concerns.
-This exclusion caused some bugs in the detection of signatures that should emit the deprecation notice.
+which appears to suggest an optional parameter before a required one.
+Even though signatures which contain an optional parameter before a required one were [deprecated in PHP 8.0](https://github.com/php/php-src/pull/5067),
+the case of implicit nullable types was left alone at that time due to BC concerns.
+This exclusion caused some bugs in the detection of which signatures should emit the deprecation notice.
 Indeed, the following signature only emits a deprecation as of [PHP 8.1](https://github.com/php/php-src/commit/c939bd2f10b41bced49eb5bf12d48c3cf64f984a):
 ```php
 function bar(T1 $a, ?T2 $b = null, T3 $c) {}
@@ -40,29 +41,29 @@ function test(T1 $a, T2|null $b = null, T3 $c) {}
 ```
 only emits the deprecation notice properly as of [PHP 8.3](https://github.com/php/php-src/pull/11497).
 
-It should be noted that those signatures were deprecated prior to the introduction of [named parameters](https://wiki.php.net/rfc/named_params),
-which actually allowed to call such functions in 8.0, but this was [corrected in PHP 8.1](https://github.com/php/php-src/commit/afc4d67c8b4e02a985a4cd27b8e79b343eb3c0ad). [1]
+It should be noted that the example signatures above were deprecated prior to the introduction of [named parameters](https://wiki.php.net/rfc/named_params),
+which actually allowed calls to such functions in 8.0, but this was [corrected in PHP 8.1](https://github.com/php/php-src/commit/afc4d67c8b4e02a985a4cd27b8e79b343eb3c0ad). [1]
 
-Therefore, as of PHP 8.1, any parameter that has a default value prior to a required one is effectively required,
+Therefore, as of PHP 8.1, any parameter that has a default value prior to a required one is effectively a required parameter,
 and will throw an `ArgumentCountError` exception if the parameter is not provided,
 be that positionally or via a named argument.
-In consequence, support for implicit nullable types already causes confusions in what should be possible or not. 
+In consequence, support for implicit nullable types already causes confusions about what should be permitted and what should not. 
 
 
-Another issue of implicit nullable types is in relation to class inheritance.
+Another issue with implicit nullable types is in relation to inheritance.
 It is rather confusing that if a child class has the exact same type signature as the parent,
-but a different default value it causes an LSP violation error to be thrown.
+but a different default value, this would cause an LSP violation error to be thrown.
 
 It should be noted, that prior to PHP 7.1 it was *actually* possible to violate
 the LSP by changing the default value away from `null`.
 This was fixed as part of the introduction of [nullable types](https://wiki.php.net/rfc/nullable_types).
 
-As it has been established, supporting this "feature" not only causes confusions
-for userland, but is also a source of bugs and unneeded complexity within the engine to handle this edge cases
-(e.g. to promote an implicit nullable intersection type to a DNF type),
-and was added to work around the limitations of PHP 5's primitive type declaration system.
+As demonstrated, supporting this "feature" not only causes confusion
+for userland, but is also a source of bugs and unneeded complexity within the engine which needs to handle its edge cases
+(e.g. to promote an implicit nullable intersection type to a DNF type).
 
-As those limitations do not exist anymore, we propose to deprecate this feature.
+Implicit nullable types were added to work around the limitations of PHP 5's primitive type declaration system;
+as those limitations do not exist anymore, we propose to deprecate this feature.
 
 ## Proposal
 
