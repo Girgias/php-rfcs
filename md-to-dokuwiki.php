@@ -25,6 +25,21 @@ const REGEXES = [
     '/\*{1}(.+)\*{1}/U' => '//${1}//',
 ];
 
+$TITLE_START_OFFSET = strlen('# PHP RFC: ');
+define('TITLE_START_OFFSET', $TITLE_START_OFFSET);
+
+const VOTING_SNIPPET_CODE = <<<'VOTING'
+As per the voting RFC a yes/no vote with a 2/3 majority is needed for this proposal to be accepted.
+
+Voting started on 2024-XX-XX and will end on 2024-XX-XX.
+ 
+<doodle title="Accept RFC_TITLE RFC?" auth="girgias" voteType="single" closed="true">
+   * Yes
+   * No
+</doodle>
+VOTING;
+
+
 $REGEX_PATTERNS = array_keys(REGEXES);
 $REGEX_REPLACEMENTS = array_values(REGEXES);
 
@@ -33,6 +48,22 @@ define('REGEX_REPLACEMENTS', $REGEX_REPLACEMENTS);
 
 function convert_md_to_php_dokuwiki(string $input): string {
     $output = preg_replace(REGEX_PATTERNS, REGEX_REPLACEMENTS, $input);
+    // Dokuwiki does not support code markup in a link text
+    $output = str_replace(
+        ['|<php>', '</php>]]'],
+        ['|', ']]'],
+        $output,
+    );
+
+    // Voting snippet
+    $offset_first_newline = strpos($input, "\n");
+    $title = substr($input, TITLE_START_OFFSET, $offset_first_newline-TITLE_START_OFFSET);
+    $voting_code = str_replace('RFC_TITLE', $title, VOTING_SNIPPET_CODE);
+    $output = str_replace(
+        'VOTING_SNIPPET',
+        $voting_code,
+        $output,
+    );
 
     return $output;
 }
