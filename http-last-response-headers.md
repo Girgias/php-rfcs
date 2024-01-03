@@ -1,4 +1,4 @@
-# PHP RFC: Add http_(get|clear)_last_request_headers() function
+# PHP RFC: Add http_(get|clear)_last_response_headers() function
 
 - Version: 0.1
 - Date: 2024-01-03
