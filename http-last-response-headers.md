@@ -23,12 +23,12 @@ All other features using this operating principle,
 such as [``$php_errormsg``](https://www.php.net/manual/en/reserved.variables.phperrormsg.php),
 have been removed because creating a variable in the local scope is a terrible way of returning additional information.
 This variable itself was initially slated [to be deprecated in PHP 8.1](https://wiki.php.net/rfc/deprecations_php_8_1#predefined_variable_http_response_header),
-but due to a lack of convenient alternatives it was removed from the proposal at that time.
+but due to a lack of convenient alternatives, it was removed from the proposal at that time.
 
 This variable is created and populated even if the HTTP request fails,
 a behaviour that requires dropping down to the stream layer, providing an additional
 stream context to ignore errors.
-Subsequently the user can manually parse the response header and detect if the HTTP request failed or not.
+Subsequently, the user can manually parse the response header and detect if the HTTP request failed or not.
 This is impractical and a better interface would be simply checking if the return value of the initial call was ``false``.
 
 As a replacement, we propose adding functions similar to ``error_get_last()``/``error_clear_last()`` which replaced
