@@ -12,9 +12,12 @@
 
 PHP supports accessing sub-elements of a type via an offset using brackets ``[]`` with the following notation ``$container[$offset]``. However, the behaviour of such access depends on the type of the container, the type of the offset, and the type of the operation. This behaviour is also highly inconsistent and difficult to anticipate.
 
-The objectives of this RFC is to explain the current complicated behaviour, behaviour that we deem consistent and easy to reason about, and intermediate steps to go from the current behaviour to the desired targed behaviour.
+The objectives of this RFC is to explain the current complicated behaviour,
+behaviour that we deem consistent and easy to reason about,
+and intermediate steps to go from the current behaviour to the desired target behaviour.
 
-We consider there to be seven (7) different operations that relate to containers and offsets, which are the following:
+We consider there to be seven (7) different operations that relate to containers and offsets,
+which are the following:
 
 - Read
 
@@ -32,7 +35,7 @@ We consider there to be seven (7) different operations that relate to containers
 
 The reason for splitting the existence check operation into two distinct operations is that the behaviour sometimes differ between using ``iseet()``/``empty()`` and ``??``.
 
-We consider there to exist thirten (13) different types of containers:
+We consider there to exist thirteen (13) different types of containers:
 
 - null
 
@@ -56,9 +59,9 @@ We consider there to exist thirten (13) different types of containers:
 
 - Internal objects that implement none of the following object handlers: ``read_dimension``, ``write_dimension``, ``has_dimension``, and ``unset_dimension``
 
-- Internal objects that implement at least one, but not all of the following object handlers: `read_dimension`, `write_dimension`, `has_dimension`, or `unset_dimension``
+- Internal objects that implement at least one, but not all the following object handlers: `read_dimension`, `write_dimension`, `has_dimension`, or `unset_dimension`
 
-- Internal objects that implement all of the following object handlers: `read_dimension`, `write_dimension`, `has_dimension`, and `unset_dimension`
+- Internal objects that implement all the following object handlers: `read_dimension`, `write_dimension`, `has_dimension`, and `unset_dimension`
 
 - ``ArrayObject`` as its behaviour is rather peculiar
 
@@ -81,9 +84,7 @@ Finally, we consider there to exist the standard eight (8) built-in types in PHP
 - objects
 
 
-
 Note: the behaviour of integer strings used as offsets for arrays being automatically converted to `int` is out of scope of this RFC.
-
 
 
 ## Current behaviour
@@ -96,9 +97,12 @@ This sections covers a large section of types when used as a container, as this 
 
 #### "Scalar" types
 
-For the purpose of this section, ``true``, integers, floating point numbers, and resources are considered to be a "scalar" types, as the engine treets those container types identically.
+For the purpose of this section,
+``true``, integers, floating point numbers,
+and resources are considered to be a "scalar" types,
+as the engine trees those container types identically.
 
-- For read operations,`null` is returned and the followin warning is emitted:
+- For read operations, `null` is returned and the following warning is emitted:
 
 ```
 Warning: Trying to access array offset on TYPE
@@ -120,19 +124,18 @@ Cannot unset offset in a non-array variable
 
 #### Classes that do not implement ArrayAccess and Internal objects which do not implement any dimension object handler
 
-For every single operation, regardless of the type of the offset, the following ``Error`` is emitted:
+For every single operation, regardless of the type of the offset, the following ``Error`` is thrown:
 
 ```
 Cannot use object of type ClassName as array
 ```
 
 
-
 ### null type as container
 
-PHP supports a feature called auto-vivification to array when writting to an offset when the container is of type ``null``.
+PHP supports a feature called auto-vivification to array when writing to an offset when the container is of type ``null``.
 
-Therefore the behaviour depending on the operator is as follows:
+Therefore, the behaviour depending on the operator is as follows:
 
 - For read operations,`null` is returned, the container continues to be `null`, and the followin warning is emitted:
 
@@ -152,9 +155,7 @@ Warning: Trying to access array offset on null
 
 PHP also supports auto-vivification to array for `false` containers, however this was deprecated in PHP 8.1 LINK TO RFC.
 
-
-
-Therefore the behaviour depending on the operator is as follows:
+Therefore, the behaviour depending on the operator is as follows:
 
 - For read operations,`null` is returned, the container continues to be `false`, and the followin warning is emitted:
 
@@ -185,11 +186,11 @@ Warning: Trying to access array offset on false
 
 ### Arrays
 
-Arrays are the ubiquitious container type in PHP and support all of the operations, thus the behaviour is only affected by the type of offsets used.
+Arrays are the ubiquitous container type in PHP and support all the operations, thus the behaviour is only affected by the type of offsets used.
 
 #### Valid offsets
 
-Arrays in PHP accepts offstes of either type int or string and in those cases the behaviour is as expected.
+Arrays in PHP accepts offsets of either type int or string and in those cases the behaviour is as expected.
 
 One thing to note is that when attempting to read an undefined offset the following warning is emitted:
 
@@ -207,7 +208,7 @@ The following offset types are cast to int silently:
 
 - `true` is cast to 1
 
-- Non fractional floating point numbers which fit in an int are cast to their int value
+- Non-fractional floating point numbers which fit in an int are cast to their int value
 
 Offsets of type resource are cast to int with the following warning:
 
@@ -215,12 +216,12 @@ Offsets of type resource are cast to int with the following warning:
 Warning: Resource ID#%d used as offset, casting to integer (%d)
 ```
 
-Offsets of type float that are fractional, non-finite, or do not fit in an integer are cast to int with the following deprecation notice:
+Offsets of type float that are fractional, non-finite,
+or do not fit in an integer are cast to int with the following deprecation notice:
 
 ```
 Deprecated: Implicit conversion from float %F to int loses precision
 ```
-
 
 
 #### Offset types cast to string
@@ -231,8 +232,7 @@ Deprecated: Implicit conversion from float %F to int loses precision
 
 The following offset types are invalid offsets types for arrays:
 
--  arrays
-
+- arrays
 - objects
 
 The behaviour is identical for all operations except existence checks with ``isset()``/``empty()``.
@@ -253,7 +253,126 @@ Cannot access offset of type TYPE in isset or empty
 
 ### Strings
 
-TODO it is a mess    
+Strings in PHP are effectively byte-arrays,
+as such the only valid type of offsets are integers.
+However, the behaviour in regard to string offsets is extremely inconsistent and complicated.
+To showcase the current behaviour we will explain the behaviour by going through each different offset type.
+
+Moreover, some operations are invalid on string offsets:
+ - Attempting to use a Read-Write operations on a string offset will throw the following error:
+   ```
+   Cannot use assign-op operators with string offsets
+   ```
+ - Attempting to unset a string offset will throw the following error:
+   ```
+   Cannot unset string offsets
+   ```
+ - Attempting to append to a string will throw the following error:
+   ```
+   [] operator not supported for strings
+   ```
+
+Attempting to read a non initialized string offset emits the following warning:
+```php
+Warning: Uninitialized string offset INTEGER
+```
+
+Finally, attempting to write more than one byte to a string offset will emit the following warning:
+```php
+Warning: Only the first byte will be assigned to the string offset
+```
+
+#### Integer offsets
+
+Integers are the only valid offset type,
+however, some integers values remain invalid offsets.
+
+Indeed, a negative offset can be outside the range of valid string offsets.
+Negative offsets start counting from the end of the string,
+if the absolute value of the offset is greater than ``strlen($string)``
+it implies that the negative offset points to a byte before the first byte of the string,
+thus being invalid, when attempting to perform a write operation in such cases
+the following warning is emitted:
+```php
+Warning: Illegal string offset %s
+```
+
+#### Offset types that warn about being cast to int
+
+The following types `null`, `false`, `true`, and floating point numbers have very simple behaviour,
+they simply emit the following warning on read, write,
+and also read-write (prior to the ``Error`` being thrown) operations:
+
+```php
+Warning: String offset cast occurred
+```
+
+Before being cast to integers and following the behaviour of an integer offset.
+
+However, there is a caveat for floating point numbers that are fractional,
+non-finite, or do not fit in an integer which emit the following deprecation notice
+when using an existence check with ``isset()`` or ``empty()``:
+
+```php
+Deprecated: Implicit conversion from float %F to int loses precision
+```
+
+#### Invalid offsets
+
+The following offset types are invalid string offsets types:
+
+ - arrays
+ - objects
+ - resources
+
+For Read, Write,
+Existence checks via the null coalesce operator `??`,
+and even Read-Write the following error is thrown:
+```
+Cannot access offset of type %s on string
+```
+
+For ``isset()`` and ``empty()`` no warning is emitted and the behaviour is as if the offset did not exist.
+
+
+#### String offsets
+
+Using a string as an offset adds yet another layer of complexity as a string
+might be:
+- Numeric integer
+- Numeric float
+- Leading numeric integer
+- Leading numeric float
+- Non-numeric
+
+Although the concept of leading numeric strings has been mostly been removed with
+the [Saner numeric strings RFC](https://wiki.php.net/rfc/saner-numeric-strings)
+due to backwards compatibility concerns some part of the engine are still aware of them,
+string offsets being one of such case.
+
+##### Numeric integer
+
+Numeric integer strings behave like a normal integer type.
+
+##### Leading numeric integer
+
+Leading numeric integers act similarly to
+[Offset types that warn about being cast to int](LINK WITH ANCHOR#) //TODO After render
+but rather than emitting the ``Warning: String offset cast occurred`` warning
+it emits a ``Warning: Illegal string offset "%s"`` warning.
+
+One difference however, is that this warning is also emitted for
+existence checks via the null coalesce operator `??`,
+but existence checks with ``isset()`` and ``empty()`` remain silent.
+
+##### Other strings
+
+Non-numeric, numeric float, and leading numeric float
+string offsets behave like an invalid string offset, with one exception,
+they do not throw an error for existence checks via the null coalesce operator `??`.
+
+Meaning the behaviour is identical to existence checks with ``isset()`` and ``empty()``.
+
 
 ### Internal objects
 
@@ -271,4 +390,4 @@ Next minor version, PHP 8.4, and next major version PHP 9.0.
 
 ## Vote
 
-snippet
+VOTING_SNIPPET
