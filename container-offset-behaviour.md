@@ -376,7 +376,46 @@ Meaning the behaviour is identical to existence checks with ``isset()`` and ``em
 
 ### Internal objects
 
+Internal objects can overload the different operations by replacing
+the following mandatory object handlers:
+ - ``read_dimension(zend_object *object, zval *offset, int type, zval *rv)``
+ - ``write_dimension(zend_object *object, zval *offset, zval *value)``
+ - ``has_dimension(zend_object *object, zval *member, int check_empty)``
+ - ``unset_dimension(zend_object *object, zval *offset)``
+
+The default handlers provided by ``std_object_handlers``,
+which are used by userland objects,
+verifies if `ArrayAccess` is implemented and calls the relevant method,
+or throw an `Error` if not.
+
+One important thing to note is that internal objects can only overload *some*
+of the handlers.
+One such example is the DOM extension, that only overwrites the read and has handlers
+for `DOMNodeMap` and `DOMNodeList`.
+Other extensions overwrite the handler to immediately throw an error,
+or customize the error message (e.g. `PDORow` for write and unset operations).
+
+Some other implementation details to know about:
+ - The ``read_dimension()`` handler is also called for existence checks
+   via the null coalesce operator `??`. In which case ``BP_VAR_IS`` is passed to the ``type`` parameter.
+ - The ``write_dimension`` handler is also responsible for appending,
+   in which case the ``offset`` parameter is the `NULL` pointer.
+
+Moreover, it is *not required* for an internal object that overwrites those handlers
+to implement ``ArrayAccess``, one such example is ``SimpleXMLElement``.
+
+It is also possible for an internal object to allowing writing to an offset,
+but not appending to the object by throwing en exception when the ``offset`` pointer is null.
+``SplFixedArray`` for example does this.
+
+TODO Determine if the custom handler MUST handle the case where a userland child class overwrites the ArrayAccess methods
+
+TODO Determine how the offset for read handler can be null in practice? Yes: see https://3v4l.org/VDVeX
+NOTE: PDORow is bugged and does not null check, SimpleXML possibly allows a write need to check
+
 ### Userland classes that implement ArrayAccess
+
+TODO Check how null coalesce operator work and ReadWrite operations.
 
 ### ArrayObject
 
