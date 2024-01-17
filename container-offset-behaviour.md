@@ -380,23 +380,30 @@ but not appending to the object by throwing en exception when the ``offset`` poi
 ``SplFixedArray`` for example does this.
 
 The ``read_dimension`` handler is not only called for read operations.
-It is also responsible for existence checks via the null coalesce operator
-`??`, in which case ``BP_VAR_IS`` is passed to the ``type`` parameter.
-The ``read_dimension`` handler must also deal with the case where the ``offset``
-`zval` pointer is the ``NULL`` pointer.
-This exoteric case happens during a nested assignment, which requires fetching intermediate values:
+Existence checks via the null coalesce operator `??`,
+also use the `read_dimension` handler in which case ``BP_VAR_IS`` is passed to the ``type`` parameter.
+
+Moreover, the `type` parameter can effectively be any `BP_VAR_*` type (`BP_VAR_W`, `BP_VAR_RW`, `BP_VAR_UNSET`)
+if the container is used in a nested operation, as intermediate values need to be fetched.
+
+The ``read_dimension`` handler must also be capable of dealing the case where the ``offset``
+`zval` pointer is the ``NULL`` pointer, which happens during an appending fetch operation.
+Just as a reminder this case is the following:
 ```php
 $object[][$offset] = $value;
 ```
 Example: https://3v4l.org/VDVeX
-NOTE: PDORow is bugged and does not null check, SimpleXML possibly allows a write need to check
 
+The complexity of these requirements for the `read_dimension` handler are generally not understood,
+and was the source of a bug in `PDORow` which did a NULL pointer dereference.
+(TODO Fix and link)
 
-TODO Determine if the custom handler MUST handle the case where userland child class overwrites the ArrayAccess methods
+TODO: Add note how SimpleXML uses this to support auto-vivification?
 
-TODO: Check behaviour of stuff doing ``unset($o[][$index])`` and ``unset($o[$key][$index])``
-
-TODO: Check behaviour with nested index where append operation is present for isset/empty
+One additional requirement all overridden dimension handlers need to follow is to
+forward calls to userland methods if a child class implements `ArrayAccess`.
+If not, the child class's ArrayAccess methods are never called.
+Such bugs have existed in ext/dom. (TODO Fix and link)
 
 ### Userland classes that implement ArrayAccess
 
@@ -467,7 +474,18 @@ Ruby is interesting but does some weird stuff with the nb of arguments and order
 Python is not massively useful as it doesn't support appending which is PHP's major hurdle
 
 For example for nested indexes RW (or intermediary append) force the
-``offsetGet()`` to return by ref (even for objects?), otherwise throw Error? 
+``offsetGet()`` to return by ref (even for objects?), otherwise throw Error?
+
+
+// Discussion with Nils
+Like an idea would be:
+ - read handler for reads or nested reads ONLY
+ - fetch_dim_dim (or whatever name) for W/RW/UNSET/IS when the dimension is part of a nested op (which would also make it easy to disallow nested fetches)
+ - write
+ - append
+ - has
+ - unset
+Where fetch dim dim and append return a zval pointer/ref knowing this may be modified
 
 ## Motivations
 
