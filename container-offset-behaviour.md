@@ -29,6 +29,11 @@ which are the following:
 
 The reason for splitting the existence check operation into two distinct operations is that the behaviour sometimes differ between using ``iseet()``/``empty()`` and ``??``.
 
+It should be noted that these operations can also be "nested" (e.g. `$container[$offset1][$offset2]`),
+where one peculiar operation is possible, an appending fetch in a write/appending operation `$container[][$offset] = $value`.
+In general, a nested operation will perform all the necessary read operations,
+interpreting the returned value as a container, until it reaches the final dimension.
+
 We consider there to exist thirteen (13) different types of containers:
 
 - null
@@ -41,9 +46,9 @@ We consider there to exist thirteen (13) different types of containers:
 - arrays
 - Userland objects that do *not* implement ``ArrayAccess``
 - Userland objects that implement `ArrayAccess`
-- Internal objects that implement none of the following object handlers: ``read_dimension``, ``write_dimension``, ``has_dimension``, and ``unset_dimension``
-- Internal objects that implement at least one, but not all the following object handlers: `read_dimension`, `write_dimension`, `has_dimension`, or `unset_dimension`
-- Internal objects that implement all the following object handlers: `read_dimension`, `write_dimension`, `has_dimension`, and `unset_dimension`
+- Internal objects that override none of the following object handlers: ``read_dimension``, ``write_dimension``, ``has_dimension``, and ``unset_dimension``
+- Internal objects that override at least one, but not all the following object handlers: `read_dimension`, `write_dimension`, `has_dimension`, or `unset_dimension`
+- Internal objects that override all the following object handlers: `read_dimension`, `write_dimension`, `has_dimension`, and `unset_dimension`
 - ``ArrayObject`` as its behaviour is rather peculiar
 
 Finally, we consider there to exist the standard eight (8) built-in types in PHP for offsets, namely:
@@ -56,7 +61,6 @@ Finally, we consider there to exist the standard eight (8) built-in types in PHP
 - strings
 - arrays
 - objects
-
 
 Note: the behaviour of integer strings used as offsets for arrays being automatically converted to `int` is out of scope for this RFC.
 
@@ -77,29 +81,22 @@ and resources are considered to be a "scalar" types,
 as the engine treats those container types identically.
 
 - For read operations, `null` is returned and the following warning is emitted:
-
-```
-Warning: Trying to access array offset on TYPE
-```
-
+  ```
+  Warning: Trying to access array offset on TYPE
+  ```
 - For write, read-write, and appending operations, the following error is thrown:
-
-```
-Cannot use a scalar value as an array
-```
-
+  ```
+  Cannot use a scalar value as an array
+  ```
 - For the unset operation, the following error is thrown:
-
-```
-Cannot unset offset in a non-array variable
-```
-
+  ```
+  Cannot unset offset in a non-array variable
+  ```
 - For existence operations, no warning is emitted and the behaviour is as if the offset did not exist.
 
 #### Classes that do not implement ArrayAccess and Internal objects which do not implement any dimension object handler
 
 For every single operation, regardless of the type of the offset, the following ``Error`` is thrown:
-
 ```
 Cannot use object of type ClassName as array
 ```
@@ -112,22 +109,20 @@ PHP supports a feature called auto-vivification to array when writing to an offs
 Therefore, the behaviour depending on the operator is as follows:
 
 - For read operations,`null` is returned, the container continues to be `null`, and the followin warning is emitted:
-
-```
-Warning: Trying to access array offset on null
-```
-
- - For write, and appending operations the container is converted to array.
-   And thus behave like an array, meaning the behaviour depends on the offset type.
-   Please see the array section for details.
- - For read-write operations, the container is converted to array,
-   before the read operation.
-   And thus behave like an array, meaning the behaviour depends on the offset type.
-   Please see the array section for details.
- - For the unset operation, the container continues to be `null`
-   and no warning or error is emitted/thrown.
- - For existence operations, no warning is emitted
-   and the behaviour is as if the offset did not exist.
+  ```
+  Warning: Trying to access array offset on null
+  ```
+- For write, and appending operations the container is converted to array.
+  And thus behave like an array, meaning the behaviour depends on the offset type.
+  Please see the array section for details.
+- For read-write operations, the container is converted to array,
+  before the read operation.
+  And thus behave like an array, meaning the behaviour depends on the offset type.
+  Please see the array section for details.
+- For the unset operation, the container continues to be `null`
+  and no warning or error is emitted/thrown.
+- For existence operations, no warning is emitted
+  and the behaviour is as if the offset did not exist.
 
 ### false as container
 
@@ -136,35 +131,35 @@ however this was
 [deprecated in PHP 8.1](https://wiki.php.net/rfc/autovivification_false).
 
 Therefore, the behaviour depending on the operator is as follows:
- - For read operations,`null` is returned,
+- For read operations,`null` is returned,
    the container continues to be `false`, and the following warning is emitted:
    ```
    Warning: Trying to access array offset on false
    ```
 
- - For write, and appending operations the container is converted to array,
-   Emitting the following deprecation notice:
-   ```
-   Deprecated: Automatic conversion of false to array is deprecated
-   ```
-   And thus behave like an array, meaning the behaviour depends on the offset type.
-   Please see the array section for details.
+- For write, and appending operations the container is converted to array,
+  Emitting the following deprecation notice:
+  ```
+  Deprecated: Automatic conversion of false to array is deprecated
+  ```
+  And thus behave like an array, meaning the behaviour depends on the offset type.
+  Please see the array section for details.
 
- - For read-write operations, the container is converted to array, before the read operation,
-   Emitting the following deprecation notice:
-   ```
-   Deprecated: Automatic conversion of false to array is deprecated
-   ```
-   And thus behave like an array, meaning the behaviour depends on the offset type.
-   Please see the array section for details.
+- For read-write operations, the container is converted to array, before the read operation,
+  Emitting the following deprecation notice:
+  ```
+  Deprecated: Automatic conversion of false to array is deprecated
+  ```
+  And thus behave like an array, meaning the behaviour depends on the offset type.
+  Please see the array section for details.
 
- - For the unset operation, the container continues to be `false`
-   and the following deprecation notice is emitted:
-   ```
-   Deprecated: Automatic conversion of false to array is deprecated
-   ```
+- For the unset operation, the container continues to be `false`
+  and the following deprecation notice is emitted:
+  ```
+  Deprecated: Automatic conversion of false to array is deprecated
+  ```
 
- - For existence operations, no warning is emitted and the behaviour is as if the offset did not exist.
+- For existence operations, no warning is emitted and the behaviour is as if the offset did not exist.
 
 
 
@@ -183,26 +178,21 @@ Warning: Undefined array key KEY_NAME
 ```
 
 
-
 #### Offset types cast to int
 
 The following offset types are cast to int silently:
 
 - `false` is cast to 0
-
 - `true` is cast to 1
-
 - Non-fractional floating point numbers which fit in an int are cast to their int value
 
 Offsets of type resource are cast to int with the following warning:
-
 ```
 Warning: Resource ID#%d used as offset, casting to integer (%d)
 ```
 
 Offsets of type float that are fractional, non-finite,
 or do not fit in an integer are cast to int with the following deprecation notice:
-
 ```
 Deprecated: Implicit conversion from float %F to int loses precision
 ```
@@ -222,13 +212,11 @@ The following offset types are invalid offsets types for arrays:
 The behaviour is identical for all operations except existence checks with ``isset()``/``empty()``.
 
 Generally the following error is thrown:
-
 ```
 Cannot access offset of type TYPE on array
 ```
 
 For ``isset()`` and ``empty()`` the following error is thrown:
-
 ```
 Cannot access offset of type TYPE in isset or empty
 ```
@@ -255,14 +243,19 @@ Moreover, some operations are invalid on string offsets:
    ```
    [] operator not supported for strings
    ```
+ - Nested operations, except nested reads, on a string will throw the following error:
+   ```
+   Cannot use string offset as an array
+   ```
+   But only *after* it has checked the type of the offset from the nested dimension.
 
 Attempting to read a non initialized string offset emits the following warning:
-```php
+```
 Warning: Uninitialized string offset INTEGER
 ```
 
 Finally, attempting to write more than one byte to a string offset will emit the following warning:
-```php
+```
 Warning: Only the first byte will be assigned to the string offset
 ```
 
@@ -277,7 +270,7 @@ if the absolute value of the offset is greater than ``strlen($string)``
 it implies that the negative offset points to a byte before the first byte of the string,
 thus being invalid, when attempting to perform a write operation in such cases
 the following warning is emitted:
-```php
+```
 Warning: Illegal string offset %s
 ```
 
@@ -286,8 +279,7 @@ Warning: Illegal string offset %s
 The following types `null`, `false`, `true`, and floating point numbers have very simple behaviour,
 they simply emit the following warning on read, write,
 and also read-write (prior to the ``Error`` being thrown) operations:
-
-```php
+```
 Warning: String offset cast occurred
 ```
 
@@ -296,8 +288,7 @@ Before being cast to integers and following the behaviour of an integer offset.
 However, there is a caveat for floating point numbers that are fractional,
 non-finite, or do not fit in an integer which emit the following deprecation notice
 when using an existence check with ``isset()`` or ``empty()``:
-
-```php
+```
 Deprecated: Implicit conversion from float %F to int loses precision
 ```
 
@@ -393,7 +384,7 @@ It is also responsible for existence checks via the null coalesce operator
 `??`, in which case ``BP_VAR_IS`` is passed to the ``type`` parameter.
 The ``read_dimension`` handler must also deal with the case where the ``offset``
 `zval` pointer is the ``NULL`` pointer.
-This exoteric case happens during a nested assignment:
+This exoteric case happens during a nested assignment, which requires fetching intermediate values:
 ```php
 $object[][$offset] = $value;
 ```
@@ -467,6 +458,9 @@ but also that the null coalesce operator is handled by this handler.
 
 // Having an Append handler that returns the newly created offset could make sense?
 This would stop requiring the read handler to deal with the appending operation.
+
+``zval* append(const zend_object *object, const zval *offset, zval *rv)``
+Return a reference to the newly created value, easier to expose to userland
 
 TODO: A lot more and design thinking, take inspiration from Raku?
 Ruby is interesting but does some weird stuff with the nb of arguments and order.
