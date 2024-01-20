@@ -24,7 +24,7 @@ which are the following:
 - Read-Write
 - Appending, via the ``$container[] = $value`` syntax
 - Unsetting
-- Existence checks via `isset()` and/or ``exists()``
+- Existence checks via `isset()` and/or ``empty()``
 - Existence checks via the null coalesce operator ``??``
 
 The reason for splitting the existence check operation into two distinct operations is that the behaviour sometimes differ between using ``iseet()``/``empty()`` and ``??``.
@@ -379,6 +379,8 @@ Therefore, it is possible for an internal object to allowing writing to an offse
 but not appending to the object by throwing en exception when the ``offset`` pointer is null.
 ``SplFixedArray`` for example does this.
 
+// TODO Note how empty() can be overload to consider more things as empty, e.g. SimpleXML does this
+
 The ``read_dimension`` handler is not only called for read operations.
 Existence checks via the null coalesce operator `??`,
 also use the `read_dimension` handler in which case ``BP_VAR_IS`` is passed to the ``type`` parameter.
@@ -407,20 +409,38 @@ Such bugs have existed in ext/dom. (TODO Fix and link)
 
 ### Userland classes that implement ArrayAccess
 
-TODO Explain Read, Write, Appending (with nested appending on a write operation), `isset()`, ``unset()``
+Userland classes can overload the dimension access operators by implementing the `ArrayAccess` interface.
+The four interface methods roughly correspond to the four relevant dimension object handlers.
 
+The interface methods are called in the following way for the different operations:
+
+- Read:
+  the `ArrayAccess::offsetGet($offset)` method is called with `$offset` being equal to the value between `[]`
+- Write:
+  the `ArrayAccess::offsetSet($offset, $value)` method is called with `$offset` being equal to the value between `[]`
+  and `$value` being the value that is being assigned to the offset. 
+- Read-Write:
+  the `ArrayAccess::offsetGet($offset)` method is called with `$offset` being equal to the value between `[]`,
+  the binary operation is then performed, and if the binary operation succeeds
+  the `ArrayAccess::offsetSet($offset, $value)` method is called with `$value` being the result of the binary operation 
+- Appending:
+  the `ArrayAccess::offsetSet($offset, $value)` method is called with `$offset` being equal to `null`
+  and `$value` being the value that is being appended to the container.
+- Unsetting:
+  the `ArrayAccess::offsetUnset($offset)` method is called with `$offset` being equal to the value between `[]`
+- Existence checks via isset():
+  the `ArrayAccess::offsetExists($offset)` method is called with `$offset` being equal to the value between `[]`
+- Existence checks via empty():
+  the `ArrayAccess::offsetExists($offset)` method is called with `$offset` being equal to the value between `[]`
+  if `true` is returned, a call to `ArrayAccess::offsetGet($offset)` is made to check the value is falsy or not.
+- Existence checks via the null coalesce operator `??`:
+  the `ArrayAccess::offsetExists($offset)` method is called with `$offset` being equal to the value between `[]`
+  if `true` is returned, a call to `ArrayAccess::offsetGet($offset)` is made to retrieve the value.
+  (Note this is handled by the default `read_dimension` object handler instead of the `has_dimension` handler)
+
+TODO: Explain nested operations of: Read, Write, Appending (with nested appending on a write operation), `isset()`, ``unset()``
+TODO: Explain how $offset can be NULL for offsetGet()
 TODO: Inform about known issues with offsetGet() and lack of returning by reference.
-
-Q: How null coalesce operator work.
-A: First a call to ``offsetExists()`` is made and then a call to ``offsetGet()``
-
-Q: How ReadWrite operations work.
-A: First a call to ``offsetGet()`` is made,
-   the binary operation is performed, and then a call to ``offsetSet()``
-
-Q: How existence checks with ``empty()`` work:
-Answer: First a call to ``offsetExists()`` is made and then a call to ``offsetGet()``
-
 
 ### ArrayObject
 
@@ -436,6 +456,9 @@ Trying to use an invalid container type as a container should throw a `TypeError
 for every single operation, regardless of the type of the offset.
 
 This includes using `false` as a container.
+
+The error message should be standardized to be consistent and descriptive for all types.
+One possibility is `Cannot use value of type TYPE as an array`.
 
 ### null type as a container
 
@@ -459,7 +482,7 @@ regardless of the operation being performed.
 If the object does not support being used as a container then the handlers should
 be the ``NULL`` pointer.
 
-``has_dimension(const zend_object *object, const zval *offset, zval *rv)``
+``bool has_dimension(const zend_object *object, const zval *offset, zval *rv)``
 Meaning extension cannot overload the ``empty()`` check anymore,
 but also that the null coalesce operator is handled by this handler.
 
@@ -477,15 +500,17 @@ For example for nested indexes RW (or intermediary append) force the
 ``offsetGet()`` to return by ref (even for objects?), otherwise throw Error?
 
 
-// Discussion with Nils
-Like an idea would be:
+// Discussion with Niels
+An idea could be:
  - read handler for reads or nested reads ONLY
  - fetch_dim_dim (or whatever name) for W/RW/UNSET/IS when the dimension is part of a nested op (which would also make it easy to disallow nested fetches)
  - write
  - append
  - has
  - unset
-Where fetch dim dim and append return a zval pointer/ref knowing this may be modified
+Where fetch_dim_dim and append return a zval pointer/ref knowing this may be modified
+
+Idea: when ArrayAccess (or smaller interfaces) are implemented the default handler for dimensions are overridden.
 
 ## Motivations
 
@@ -506,3 +531,9 @@ Next minor version, PHP 8.4, and next major version PHP 9.0.
 ## Vote
 
 VOTING_SNIPPET
+
+## References
+
+Current behaviour has been mostly discovered and documented by adding behavioural tests in https://github.com/php/php-src/pull/12723
+
+Behaviour for ArrayObject mostly comes out of attempting to fix various bugs in 
