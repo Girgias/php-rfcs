@@ -2,11 +2,11 @@
 
 - Version: 0.1
 - Date: 2023-12-20
-- Authors: Máté Kocsis <email@domain.net>, Gina Peter Banyard <girgias@php.net>
+- Authors: Máté Kocsis <kocsismate@php.net>, Gina Peter Banyard <girgias@php.net>
 - Status: Under Discussion
 - Target Version: PHP 8.4
 - Implementation: [https://github.com/php/php-src/pull/12959](https://github.com/php/php-src/pull/12959)
-- First Published at: [http://wiki.php.net/rfc/deprecate-implicit-nullable-types](http://wiki.php.net/rfc/deprecate-implicit-nullable-types)
+- First Published at: [http://wiki.php.net/rfc/deprecate-implicitly-nullable-types](http://wiki.php.net/rfc/deprecate-implicitly-nullable-types)
 
 ## Introduction
 
@@ -19,9 +19,8 @@ the [`callable` type](https://wiki.php.net/rfc/callable) as of PHP 5.4, `array` 
 As it was impossible to have a default value for such types,
 PHP 5.1 made it possible to use `null` (and only `null`) as a default value for such type and making these types implicitly nullable.
 
-However, the imlicit nullable semantics are confusing and conflict with other
-language rules, in particular because type declarations of these types can be
-misleading as to what types they actually accept.
+However, the implicitly nullable semantics are confusing and conflict with other language rules,
+in particular because type declarations of these types can be misleading as to what types they actually accept.
 
 Furthermore, this syntax still permits signatures such as:
 ```php
@@ -49,7 +48,6 @@ and will throw an `ArgumentCountError` exception if the parameter is not provide
 be that positionally or via a named argument.
 In consequence, support for implicitly nullable types already causes confusions about what should be permitted and what should not.
 
-
 Another issue with implicitly nullable types is in relation to inheritance.
 It is rather confusing that if a child class has the exact same type signature as the parent,
 but a different default value, this would cause an LSP violation error to be thrown.
@@ -62,7 +60,7 @@ As demonstrated, supporting this "feature" not only causes confusion
 for userland, but is also a source of bugs and unneeded complexity within the engine which needs to handle its edge cases
 (e.g. to promote an implicitly nullable intersection type to a DNF type).
 
-implicitly nullable types were added to work around the limitations of PHP 5's primitive type declaration system;
+Implicitly nullable types were added to work around the limitations of PHP 5's primitive type declaration system;
 as those limitations do not exist anymore, we propose to deprecate this feature.
 
 ## Proposal
@@ -83,7 +81,7 @@ Using an implicitly nullable type will emit a deprecation notice.
 There exist a variety of userland tools to automatically update implicit
 nullable types to explicit nullable types.
 One such example is the ``nullable_type_declaration_for_default_null_value``
-fixer from PHP-CS-Fixer.
+fixer from [PHP-CS-Fixer](https://github.com/PHP-CS-Fixer/PHP-CS-Fixer).
 
 As the ``?T`` syntax has existed since PHP 7.1, which is 7 years old,
 we deem version cross compatibility to be a non-issue.
