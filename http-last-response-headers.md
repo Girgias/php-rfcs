@@ -15,7 +15,6 @@ variable is magically created in the local scope whenever an HTTP request is per
 i.e. when using the [HTTP wrapper](https://www.php.net/manual/en/wrappers.http.php).
 One such usage is using ``file_get_content()`` to retrieve the content of a URL.
 
-
 The [``$http_response_header``](https://www.php.net/manual/en/reserved.variables.httpresponseheader.php)
 variable will contain all the HTTP headers that were encountered during the request performed via the HTTP wrapper.
 
@@ -33,6 +32,19 @@ This is impractical and a better interface would be simply checking if the retur
 
 As a replacement, we propose adding functions similar to ``error_get_last()``/``error_clear_last()`` which replaced
 [``$php_errormsg``](https://www.php.net/manual/en/reserved.variables.phperrormsg.php).
+
+## Motivation
+
+The primary motivation for adding this function, is to be able to remove the [``$http_response_header``](https://www.php.net/manual/en/reserved.variables.httpresponseheader.php)
+variable completely. To create this variable one needs to use the `zend_set_local_var_str()` engine function.
+This is also the last usage of this engine function and its sibling function `zend_set_local_var()`.
+
+Moreover, this variable needs to be special cased in the optimizer/JIT
+(via the `HTTP_RESPONSE_HEADER_ALIAS` enum case of `zend_ssa_alias_kind`).
+Which means that any extension that would use this engine API would misbehave under opcache.
+
+See the [Backward Incompatible Changes](https://wiki.php.net/rfc/http-last-response-headers#backward_incompatible_changes)
+section for an impact analysis of the removal of this feature.
 
 ## Proposal
 
@@ -71,6 +83,15 @@ if (function_exists('http_get_last_response_headers')) {
 Considering the sparse usage of this feature, the possibility to write cross version compatible code,
 and the possible engine and optimizer simplifications,
 it seems reasonable to slate this feature for removal even without a deprecation notice if the need arises.
+
+## Rejected ideas
+
+One suggested idea was to provide those headers via a by-reference entry to the stream context.
+This idea was rejected by us, and other members of the PHP Foundation,
+as we wish to maintain stream contexts as a stateless configuration data structure passed to the stream.
+
+This one-to-one feature replacement does not prevent the introduction of a more generic solution for other stream wrappers.
+And this pair of new functions can always be slated for future deprecation and removal.
 
 ## Version
 
