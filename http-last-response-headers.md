@@ -1,6 +1,6 @@
 # PHP RFC: Add http_(get|clear)_last_response_headers() function
 
-- Version: 0.1
+- Version: 0.2
 - Date: 2024-01-03
 - Author: Gina Peter Banyard <girgias@php.net>
 - Status: Under Discussion
