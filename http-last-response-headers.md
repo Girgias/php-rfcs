@@ -13,7 +13,7 @@
 The [``$http_response_header``](https://www.php.net/manual/en/reserved.variables.httpresponseheader.php)
 variable is magically created in the local scope whenever an HTTP request is performed through PHP's stream layer,
 i.e. when using the [HTTP wrapper](https://www.php.net/manual/en/wrappers.http.php).
-One such usage is using ``file_get_content()`` to retrieve the content of a URL.
+One such usage is using ``file_get_contents()`` to retrieve the content of a URL.
 
 The [``$http_response_header``](https://www.php.net/manual/en/reserved.variables.httpresponseheader.php)
 variable will contain all the HTTP headers that were encountered during the request performed via the HTTP wrapper.
