@@ -340,6 +340,8 @@ One difference however, is that this warning is also emitted for
 existence checks via the null coalesce operator `??`,
 but existence checks with ``isset()`` and ``empty()`` remain silent.
 
+// TODO: Inform about bug where isset() is false but if you read you can access the value
+
 ##### Other strings
 
 Non-numeric, numeric float, and leading numeric float
@@ -441,6 +443,8 @@ The interface methods are called in the following way for the different operatio
 TODO: Explain nested operations of: Read, Write, Appending (with nested appending on a write operation), `isset()`, ``unset()``
 TODO: Explain how $offset can be NULL for offsetGet()
 TODO: Inform about known issues with offsetGet() and lack of returning by reference.
+TODO: Figure out what is called when doing `$r = &$container[$offset1]`
+TODO: Figure out what is called when doing `$r = &$container[$offset1][$offset2]`
 
 ### ArrayObject
 
@@ -479,8 +483,33 @@ regardless of the operation being performed.
 
 ### Objects container improvements
 
+#### For userland
+
+Introduce new, more granular, interfaces:
+ - `DimensionReadable`: which would have the equivalent of `offsetGet()` and ``offsetExists()``
+ - `DimensionWritable`: which would have the equivalent of `offsetSet()`
+ - `DimensionUnsettable`: which would have the equivalent of `offsetUnset()`
+ - `Appendable`: which would have a single method `append(mixed $value): mixed` that is called when appending
+
+// TODO: Figure out where the `fetch()` needs to go, possible write?
+
+Ideally, we would want the interfaces to have generic types,
+as this would allow TypeErrors to be thrown by the engine without needing
+to manually handle the type of the offset and/or value.
+
+However, `mixed` allows us to migrate to generic types if we ever get them.
+
+Intersection types makes the addition and usage of more granular interfaces possible.
+
+Those new interfaces and methods provide clearer semantics and behaviour that is known
+to be supported or not by the class, while simplifying the implementation of said classes.
+
+#### For internals and extensions
+
 If the object does not support being used as a container then the handlers should
 be the ``NULL`` pointer.
+Moreover, the object should implement the relevant interfaces for the capabilities
+that it supports.
 
 ``bool has_dimension(const zend_object *object, const zval *offset, zval *rv)``
 Meaning extension cannot overload the ``empty()`` check anymore,
@@ -524,6 +553,70 @@ Confusing semantics, requirement if we ever want to make `empty()` not a languag
 
 ## Migration path
 
+To go from the current semantics and behaviour to the desired semantics we propose
+the following changes for PHP 8.4, and PHP 9.0:
+
+### Changes in PHP 8.4
+
+#### Add granular interfaces
+
+#### Disallow resources to be used as offsets
+
+Considering the phasing out of resources,
+resources being generally considered equivalent as objects,
+a warning having been emitted for using resources as offset,
+we propose to promote this warning to a TypeError in PHP 8.4.
+
+This removes variations and complexity to the engine.
+
+#### Improved error messages
+
+// TODO better, specify operation first? So it is generic with objects which do not implement all interfaces
+
+Standardize error message for invalid containers to be:
+```
+Type TYPE cannot be used as an array, attempted to OPERATION
+```
+Where `OPERATION` is one of the following:
+ - `read offset of type TYPE on it`
+ - `write offset of type TYPE on it`
+ - `unset offset of type TYPE on it`
+ - `check existence of offset of type TYPE on it`
+ - `append value to it`
+
+// TODO: Improve messages for invalid offset types
+
+#### Emit warnings for invalid offset types on arrays
+
+Emit the following warnings when using invalid offsets on an array,
+this includes `null`, `bool`, and `float` types:
+
+```
+Warning: offset of type TYPE has been cast to (int|string)
+```
+
+#### Emit warning for checking existence of string offset with invalid offset types
+
+```
+Cannot access offset of type TYPE on  in isset or empty
+```
+
+#### Emit warnings for checking existence of offsets on invalid container types
+
+This includes `false`, `true`, `int`, `float`, and `resource`.
+
+// TODO: Warning message
+
+Note, this does *not* include `null`, which will short-cut existence checks.
+
+#### Internal objects must implement the relevant interfaces
+
+This will be checked in DEBUG builds
+
+### Changes in PHP 9.0
+
+Promote all warnings to `Error`
+
 ## Version
 
 Next minor version, PHP 8.4, and next major version PHP 9.0.
@@ -531,6 +624,11 @@ Next minor version, PHP 8.4, and next major version PHP 9.0.
 ## Vote
 
 VOTING_SNIPPET
+
+## Future scope
+
+Phase out `ArrayAccess`
+c.f. https://wiki.php.net/rfc/phase_out_serializable
 
 ## References
 
