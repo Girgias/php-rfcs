@@ -27,6 +27,10 @@ which are the following:
 - Existence checks via `isset()` and/or ``empty()``
 - Existence checks via the null coalesce operator ``??``
 
+// TODO Add fetching and fetch-appending operations
+// TODO Add ++/-- operations (need tests)?
+TODO: Figure out what is called when doing `$r = &$container[$offset1]`? A: Write op is done but the read handler is called
+
 The reason for splitting the existence check operation into two distinct operations is that the behaviour sometimes differ between using ``iseet()``/``empty()`` and ``??``.
 
 It should be noted that these operations can also be "nested" (e.g. `$container[$offset1][$offset2]`),
@@ -332,7 +336,7 @@ Numeric integer strings behave like a normal integer type.
 ##### Leading numeric integer
 
 Leading numeric integers act similarly to
-[Offset types that warn about being cast to int](LINK WITH ANCHOR#) //TODO After render
+[Offset types that warn about being cast to int](#offset_types_that_warn_about_being_cast_to_int)
 but rather than emitting the ``Warning: String offset cast occurred`` warning
 it emits a ``Warning: Illegal string offset "%s"`` warning.
 
@@ -340,7 +344,28 @@ One difference however, is that this warning is also emitted for
 existence checks via the null coalesce operator `??`,
 but existence checks with ``isset()`` and ``empty()`` remain silent.
 
-// TODO: Inform about bug where isset() is false but if you read you can access the value
+However, it turns out that the behaviour of ``isset()`` and ``empty()`` is completely broken in this case.
+It always indicates that an offset does not exist, when in fact it can be accessed:
+```php
+<?php
+$s = "abcdefghijklmnopqrst";
+$o = "5x4";
+var_dump(isset($s[$o]));
+var_dump(empty($s[$o]));
+var_dump($s[$o] ?? "default");
+var_dump($s[$o]);
+```
+results in the following output:
+```text
+bool(false)
+bool(true)
+
+Warning: Illegal string offset "5x4" in /tmp/preview on line 7
+string(1) "f"
+
+Warning: Illegal string offset "5x4" in /tmp/preview on line 8
+string(1) "f"
+```
 
 ##### Other strings
 
@@ -439,12 +464,16 @@ The interface methods are called in the following way for the different operatio
   the `ArrayAccess::offsetExists($offset)` method is called with `$offset` being equal to the value between `[]`
   if `true` is returned, a call to `ArrayAccess::offsetGet($offset)` is made to retrieve the value.
   (Note this is handled by the default `read_dimension` object handler instead of the `has_dimension` handler)
+- Fetch:
+  the `ArrayAccess::offsetGet($offset)` method is called with `$offset` being equal to the value between `[]`
+- Fetch Append:
+  the `ArrayAccess::offsetGet($offset)` method is called with `$offset` being equal to `null`
 
-TODO: Explain nested operations of: Read, Write, Appending (with nested appending on a write operation), `isset()`, ``unset()``
-TODO: Explain how $offset can be NULL for offsetGet()
-TODO: Inform about known issues with offsetGet() and lack of returning by reference.
-TODO: Figure out what is called when doing `$r = &$container[$offset1]`
-TODO: Figure out what is called when doing `$r = &$container[$offset1][$offset2]`
+Because `ArrayAccess::offsetGet($offset)` is called for fetching operations, and if it does not return an object or by-reference,
+the following a notice is emitted:
+```text
+Notice: Indirect modification of overloaded element of ClassName has no effect in %s on line %d
+```
 
 ### ArrayObject
 
@@ -486,12 +515,46 @@ regardless of the operation being performed.
 #### For userland
 
 Introduce new, more granular, interfaces:
- - `DimensionReadable`: which would have the equivalent of `offsetGet()` and ``offsetExists()``
+ - `DimensionReadable`: which would have the equivalent of `offsetGet()` and `offsetExists()`
  - `DimensionWritable`: which would have the equivalent of `offsetSet()`
- - `DimensionUnsettable`: which would have the equivalent of `offsetUnset()`
+ - `DimensionUnsetable`: which would have the equivalent of `offsetUnset()`
  - `Appendable`: which would have a single method `append(mixed $value): mixed` that is called when appending
+ - `DimensionFetchable`: which would extend `DimensionReadable` and have a method that returns by-reference
+ - `FetchAppendable`: which would extend `Appendable` and have a method that returns by-reference the appended value
 
-// TODO: Figure out where the `fetch()` needs to go, possible write?
+```php
+interface DimensionReadable
+{
+    public function offsetGet(mixed $offset): mixed;
+
+    public function offsetExists(mixed $offset): bool;
+}
+
+interface DimensionFetchable extends DimensionReadable
+{
+    public function &offsetFetch(mixed $offset): mixed;
+}
+
+interface DimensionWritable
+{
+    public function offsetWrite(mixed $offset, mixed $value): void;
+}
+
+interface DimensionUnsetable
+{
+    public function offsetUnset(mixed $offset): void;
+}
+
+interface Appendable
+{
+    public function append(mixed $value): void;
+}
+
+interface FetchAppendable extends Appendable
+{
+    public function &fetchAppend(): mixed;
+}
+```
 
 Ideally, we would want the interfaces to have generic types,
 as this would allow TypeErrors to be thrown by the engine without needing
@@ -511,35 +574,26 @@ be the ``NULL`` pointer.
 Moreover, the object should implement the relevant interfaces for the capabilities
 that it supports.
 
-``bool has_dimension(const zend_object *object, const zval *offset, zval *rv)``
-Meaning extension cannot overload the ``empty()`` check anymore,
-but also that the null coalesce operator is handled by this handler.
+For this purpose, we move all the `_dimension` handlers to the `zend_class_entry` structure,
+we also add new handlers which correspond to the above interface which are all defined in a new struct:
+```c
+typedef struct _zend_class_dimensions_functions {
+	/* rv is a slot provided by the callee that is returned */
+	zval *(*read_dimension)(zend_object *object, zval *offset, zval *rv);
+	bool  (*has_dimension)(zend_object *object, zval *offset);
+	zval *(*fetch_dimension)(zend_object *object, zval *offset, zval *rv);
+	void  (*write_dimension)(zend_object *object, zval *offset, zval *value);
+	/* rv is a slot provided by the callee that is returned */
+	void  (*append)(zend_object *object, zval *value);
+	zval *(*fetch_append)(zend_object *object, zval *rv);
+	void  (*unset_dimension)(zend_object *object, zval *offset);
+} zend_class_dimensions_functions;
+```
 
-// Having an Append handler that returns the newly created offset could make sense?
-This would stop requiring the read handler to deal with the appending operation.
-
-``zval* append(const zend_object *object, const zval *offset, zval *rv)``
-Return a reference to the newly created value, easier to expose to userland
-
-TODO: A lot more and design thinking, take inspiration from Raku?
-Ruby is interesting but does some weird stuff with the nb of arguments and order.
-Python is not massively useful as it doesn't support appending which is PHP's major hurdle
-
-For example for nested indexes RW (or intermediary append) force the
-``offsetGet()`` to return by ref (even for objects?), otherwise throw Error?
-
-
-// Discussion with Niels
-An idea could be:
- - read handler for reads or nested reads ONLY
- - fetch_dim_dim (or whatever name) for W/RW/UNSET/IS when the dimension is part of a nested op (which would also make it easy to disallow nested fetches)
- - write
- - append
- - has
- - unset
-Where fetch_dim_dim and append return a zval pointer/ref knowing this may be modified
-
-Idea: when ArrayAccess (or smaller interfaces) are implemented the default handler for dimensions are overridden.
+Some key distinctions to note with those new handlers and how the engine would behave.
+The `has_dimension` handler does not know if it is being called with `empty()`,
+instead if the offset exists, the `read_dimension` is called and then the value of it is checked if it is falsy.
+Similarly, the null coalesce operator also behaves this way, meaning the `read_dimension` handler is only ever called for reads.
 
 ## Motivations
 
@@ -598,7 +652,7 @@ Warning: offset of type TYPE has been cast to (int|string)
 #### Emit warning for checking existence of string offset with invalid offset types
 
 ```
-Cannot access offset of type TYPE on  in isset or empty
+Cannot access offset of type TYPE on string in isset or empty
 ```
 
 #### Emit warnings for checking existence of offsets on invalid container types
@@ -607,7 +661,7 @@ This includes `false`, `true`, `int`, `float`, and `resource`.
 
 // TODO: Warning message
 
-Note, this does *not* include `null`, which will short-cut existence checks.
+Note, this does *not* include `null`, which will continue to short-cut existence checks.
 
 #### Internal objects must implement the relevant interfaces
 
