@@ -74,17 +74,67 @@ by emitting the following deprecation notice at compile time:
 Deprecated: Implicitly marking parameter $var as nullable is deprecated, the explicit nullable type must be used instead
 ```
 
+And remove support for implicitly nullable types in PHP 9.
+
 ## Backward Incompatible Changes
 
 Using an implicitly nullable type will emit a deprecation notice.
 
-There exist a variety of userland tools to automatically update implicit
-nullable types to explicit nullable types.
-One such example is the `nullable_type_declaration_for_default_null_value`
-fixer from [PHP-CS-Fixer](https://github.com/PHP-CS-Fixer/PHP-CS-Fixer).
+### Impact analysis and migration paths
+
+Out of the top 2000 composer packages 880 use implicitly nullable types. [2]
+One explanation for such a high usage is that using implicitly nullable types
+was mandated by Symfony's coding style.
+
+However, there exist a variety of tools to automatically update code to use
+explicit nullable types from the `T $parameter = null` syntax to `?T $parameter = null`.
+And Symfony used one of them to migrate their codebase, and change their coding style,
+in anticipation of this RFC. [3]
+
+Two such tools are [PHP-CS-Fixer](https://github.com/PHP-CS-Fixer/PHP-CS-Fixer)
+with the `nullable_type_declaration_for_default_null_value` fixer,
+and [PHP_CodeSniffer](https://github.com/PHPCSStandards/PHP_CodeSniffer/)
+using the `SlevomatCodingStandard.TypeHints.NullableTypeForNullDefaultValue` sniff
+from the [Slevomat Coding Standard](https://github.com/slevomat/coding-standard).
+
+It should be noted that it is possible to ignore the commit which fixes these issues from the
+`git blame` command since git version 2.23 via the `--ignore-rev` argument flag or the creation of a
+`.git-blame-ignore-revs` file which is passed to the `--ignore-revs-file` argument flag.
+
+This flag can also be automatically configured using:
+```shell
+git config blame.ignoreRevsFile .git-blame-ignore-revs
+```
+
+One other issue which might be revealed when converting implicitly nullable types to explicit ones
+without removing the default `null` value, is that an optional parameter might now exist before a mandatory one.
+Which will cause a secondary deprecation notice as this was [deprecated in PHP 8.0](https://github.com/php/php-src/pull/5067) as previously mentioned.
 
 As the `?T` syntax has existed since PHP 7.1, which is 7 years old,
-we deem version cross compatibility to be a non-issue.
+the various tools available to fix this issue automatically,
+and this issue being easily resolved as it requires a single change at the declaration site
+(instead of potentially infinite call-site changes),
+we deem this deprecation to be easily handled and fixed.
+
+### Code change examples
+
+The following example:
+```php
+class Foo {
+    public function bar(int $x = null, float $y) {
+        // ...
+    }
+}
+```
+
+should end up looking like:
+```php
+class Foo {
+    public function bar(?int $x, float $y) {
+        // ...
+    }
+}
+```
 
 ## Version
 
@@ -97,3 +147,5 @@ VOTING_SNIPPET
 ## References
 
 [1] https://externals.io/message/114007#114026
+[2] https://gist.github.com/kocsismate/cf3bdfbf35eb10224ee5ecd29b39656b
+[3] https://github.com/symfony/symfony/pull/53612
