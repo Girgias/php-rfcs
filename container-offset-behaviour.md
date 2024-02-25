@@ -16,7 +16,7 @@ The objectives of this RFC is to explain the current complicated behaviour,
 behaviour that we deem consistent and easy to reason about,
 and intermediate steps to go from the current behaviour to the desired target behaviour.
 
-We consider there to be seven (7) different operations that relate to containers and offsets,
+We consider there to be nine (9) different operations that relate to containers and offsets,
 which are the following:
 
 - Read
@@ -26,16 +26,23 @@ which are the following:
 - Unsetting
 - Existence checks via `isset()` and/or ``empty()``
 - Existence checks via the null coalesce operator ``??``
+- Fetch
+- Fetch-Append
 
 // TODO Add fetching and fetch-appending operations
-// TODO Add ++/-- operations (need tests)?
+// TODO Add ++/-- operations (need tests) a FETCH_DIM_RW happens?
 TODO: Figure out what is called when doing `$r = &$container[$offset1]`? A: Write op is done but the read handler is called
 
 The reason for splitting the existence check operation into two distinct operations is that the behaviour sometimes differ between using ``iseet()``/``empty()`` and ``??``.
 
-It should be noted that these operations can also be "nested" (e.g. `$container[$offset1][$offset2]`),
-where one peculiar operation is possible, an appending fetch in a write/appending operation `$container[][$offset] = $value`.
-In general, a nested operation will perform all the necessary read operations,
+Fetching happens when retrieving a reference to the content of an offset,
+this happens in the obvious `$ref = &$container[$offset]`, but also when doing write/unset operations
+on nested dimension (e.g. `$container[$offset1][$offset2]`).
+
+The peculiar fetch-append operation happens when retrieving a reference of an append operation.
+For example `$r = &$container[];`, or a more common use `$container[][$offset] = $value`.
+
+In general, a nested operation will perform all the necessary fetch/read operations,
 interpreting the returned value as a container, until it reaches the final dimension.
 
 We consider there to exist thirteen (13) different types of containers:
@@ -88,7 +95,7 @@ as the engine treats those container types identically.
   ```
   Warning: Trying to access array offset on TYPE
   ```
-- For write, read-write, and appending operations, the following error is thrown:
+- For write, read-write, appending, fetch, and fetch-append operations, the following error is thrown:
   ```
   Cannot use a scalar value as an array
   ```
@@ -116,7 +123,7 @@ Therefore, the behaviour depending on the operator is as follows:
   ```
   Warning: Trying to access array offset on null
   ```
-- For write, and appending operations the container is converted to array.
+- For write, append, fetch, and fetch-append operations the container is converted to array.
   And thus behave like an array, meaning the behaviour depends on the offset type.
   Please see the array section for details.
 - For read-write operations, the container is converted to array,
@@ -141,7 +148,7 @@ Therefore, the behaviour depending on the operator is as follows:
    Warning: Trying to access array offset on false
    ```
 
-- For write, and appending operations the container is converted to array,
+- For write, append, fetch, and fetch-append operations the container is converted to array,
   Emitting the following deprecation notice:
   ```
   Deprecated: Automatic conversion of false to array is deprecated
@@ -243,15 +250,28 @@ Moreover, some operations are invalid on string offsets:
    ```
    Cannot unset string offsets
    ```
- - Attempting to append to a string will throw the following error:
+ - Attempting to append or fetch-append to a string will throw the following error:
    ```
    [] operator not supported for strings
    ```
- - Nested operations, except nested reads, on a string will throw the following error:
-   ```
-   Cannot use string offset as an array
-   ```
-   But only *after* it has checked the type of the offset from the nested dimension.
+ - Fetch operations will throw different errors depending on the fetch operation,
+   after the type of the offset has been checked:
+   - For attempting to retrieve a reference to a string offset:
+     ```
+     Cannot create references to/from string offsets
+     ```
+   - For attempting to use the string offset as a container:
+     ```
+     Cannot use string offset as an array
+     ```
+   - For attempting to use the string offset as an object:
+     ```
+     Cannot use string offset as an object
+     ```
+   - For attempting to use increment or decrement the string offset:
+     ```
+     Cannot increment/decrement string offsets
+     ```
 
 Attempting to read a non initialized string offset emits the following warning:
 ```
@@ -280,7 +300,7 @@ Warning: Illegal string offset %s
 
 #### Offset types that warn about being cast to int
 
-The following types `null`, `false`, `true`, and floating point numbers have very simple behaviour,
+The following types `null`, `false`, `true`, and `float` have very simple behaviour,
 they simply emit the following warning on read, write,
 and also read-write (prior to the ``Error`` being thrown) operations:
 ```
@@ -400,34 +420,36 @@ or customize the error message (e.g. `PDORow` for write and unset operations).
 Moreover, it is *not required* for an internal object that overwrites those handlers
 to implement ``ArrayAccess``, one such example is ``SimpleXMLElement``.
 
+The `check_empty` parameter of the `has_dimension` is there to indicate to the handler if
+the existence check is a call to `isset()` or `empty()` and the handler must implement the logic
+for determining if the value is falsy or not.
+
 The ``write_dimension`` handler is also responsible for the appending operation,
 in which case the ``offset`` parameter is the `NULL` pointer.
 Therefore, it is possible for an internal object to allowing writing to an offset,
 but not appending to the object by throwing en exception when the ``offset`` pointer is null.
 ``SplFixedArray`` for example does this.
 
-// TODO Note how empty() can be overload to consider more things as empty, e.g. SimpleXML does this
+Obviously, the `read_dimension` handler is called for read operations with the `type` being `BP_VAR_R` in that case.
 
-The ``read_dimension`` handler is not only called for read operations.
-Existence checks via the null coalesce operator `??`,
-also use the `read_dimension` handler in which case ``BP_VAR_IS`` is passed to the ``type`` parameter.
+However, the `read_dimension` handler is also called for existence checks via the null coalesce operator `??`,
+in which case `BP_VAR_IS` is passed to the `type` parameter.
 
-Moreover, the `type` parameter can effectively be any `BP_VAR_*` type (`BP_VAR_W`, `BP_VAR_RW`, `BP_VAR_UNSET`)
-if the container is used in a nested operation, as intermediate values need to be fetched.
+Finally, the `read_dimension` handler is also called for fetch and fetch-append operations.
+In which case the `type` parameter might be `BP_VAR_W`, `BP_VAR_RW`, or `BP_VAR_UNSET`
+depending on what the purpose of the fetch is.
+(Note: retrieving a reference is a `BP_VAR_W` operation.)
+For the fetch-append operation the `offset` parameter is the `NULL` pointer, mimicking the behaviour of the `write_handler`.
 
-The ``read_dimension`` handler must also be capable of dealing the case where the ``offset``
-`zval` pointer is the ``NULL`` pointer, which happens during an appending fetch operation.
-Just as a reminder this case is the following:
-```php
-$object[][$offset] = $value;
-```
-Example: https://3v4l.org/VDVeX
+This effectively means that the `read_dimension` handler must handle every possible `BP_VAR_*` type
+and possibly not having an offset.
 
 The complexity of these requirements for the `read_dimension` handler are generally not understood,
 and was the source of a bug in `PDORow` which did a NULL pointer dereference.
 (TODO Fix and link)
 
-TODO: Add note how SimpleXML uses this to support auto-vivification?
+The only extension that properly implements all this complexity is SimpleXML
+and uses it to support auto-vivification of XML elements.
 
 One additional requirement all overridden dimension handlers need to follow is to
 forward calls to userland methods if a child class implements `ArrayAccess`.
@@ -597,13 +619,28 @@ Similarly, the null coalesce operator also behaves this way, meaning the `read_d
 
 ## Motivations
 
+The over-arching goal of the proposed semantics is to make it obvious and intuitive
+what will happen when using offsets and containers in PHP.
+
 ### Throwing Errors for invalid container types for all operations
+
+This should be self-explanatory, attempting to use a type which is not a container as a container is a programming error.
+
+This is also true when actually checking for the existence of an offset.
 
 ### Throwing Errors for invalid offset types for all operations
 
-### Remove custom support for `empty()`
+Similarly, using invalid offset types on a container is a programming error,
+regardless of checking for the existence of an offset or not.
 
-Confusing semantics, requirement if we ever want to make `empty()` not a language construct and just a simple function
+Moreover, `array` already behaves this way.
+
+### Remove custom support for `empty()` in object handlers
+
+This adds implementation complexity on the part of the handler,
+and can lead to unintuitive semantics if the handler considers non-falsy things empty.
+
+Moreover, this is a requirement if we ever want to make `empty()` not a language construct and just a simple function.
 
 ## Migration path
 
@@ -614,6 +651,15 @@ the following changes for PHP 8.4, and PHP 9.0:
 
 #### Add granular interfaces
 
+Add the interfaces that were described in the Objects container improvements section.
+
+Cross-version compatible code can use DNF types to type their input arguments, e.g:
+```php
+function foo(ArrayAccess|(DimensionReadable&DimensionWritable)) {
+    /* Do something useful */
+}
+```
+
 #### Disallow resources to be used as offsets
 
 Considering the phasing out of resources,
@@ -622,6 +668,27 @@ a warning having been emitted for using resources as offset,
 we propose to promote this warning to a TypeError in PHP 8.4.
 
 This removes variations and complexity to the engine.
+
+#### Disallow leading numeric strings to be used as string offsets
+
+Considering the prolonged existence of notice/warnings when using numeric strings,
+and the fact `isset()/empty()` is completely broken with such offsets,
+we propose to promote this warning to the usual `Cannot access offset of type %s on string` error.
+
+#### Normalize the behaviour of invalid string offsets
+
+This effectively means that non integer-numeric strings used as an offset for strings
+with the null coalesce operator `??` would throw the following error:
+```
+Cannot access offset of type %s on string
+```
+
+#### Emit warning on read-write operations on `null` container
+
+Emit the same warning as a simple read operation when using `null` as a container:
+```
+Warning: Trying to access array offset on null
+```
 
 #### Improved error messages
 
@@ -637,6 +704,8 @@ Where `OPERATION` is one of the following:
  - `unset offset of type TYPE on it`
  - `check existence of offset of type TYPE on it`
  - `append value to it`
+ - TODO: `fetch`
+ - TODO: `fetch append`
 
 // TODO: Improve messages for invalid offset types
 
@@ -659,13 +728,22 @@ Cannot access offset of type TYPE on string in isset or empty
 
 This includes `false`, `true`, `int`, `float`, and `resource`.
 
-// TODO: Warning message
+// TODO: Warning message, see Improve error messages section
+```
+Warning: type TYPE cannot be used like an array
+```
 
-Note, this does *not* include `null`, which will continue to short-cut existence checks.
+Note: this does *not* include `null`, which will continue to short-cut existence checks.
 
 #### Internal objects must implement the relevant interfaces
 
 This will be checked in DEBUG builds
+
+TODO: ext/ffi CData might need to be converted to an interface and have concrete final classes for different data.
+
+#### ArrayObject changes
+
+TODO: After going through ArrayObject hell
 
 ### Changes in PHP 9.0
 
@@ -688,4 +766,4 @@ c.f. https://wiki.php.net/rfc/phase_out_serializable
 
 Current behaviour has been mostly discovered and documented by adding behavioural tests in https://github.com/php/php-src/pull/12723
 
-Behaviour for ArrayObject mostly comes out of attempting to fix various bugs in 
+Behaviour for ArrayObject mostly comes out of attempting to fix various bugs in https://github.com/php/php-src/pull/12037
