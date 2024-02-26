@@ -416,6 +416,9 @@ One such example is the DOM extension, that only overwrites the read and has han
 for `DOMNodeMap` and `DOMNodeList`.
 Other extensions overwrite the handler to immediately throw an error,
 or customize the error message (e.g. `PDORow` for write and unset operations).
+The `ResourceBundle` class overloads the `read_dimension` handler,
+but not the `has_dimension` handler,
+which leads to a situation where one can access offset but not check for their existence.
 
 Moreover, it is *not required* for an internal object that overwrites those handlers
 to implement ``ArrayAccess``, one such example is ``SimpleXMLElement``.
@@ -423,6 +426,8 @@ to implement ``ArrayAccess``, one such example is ``SimpleXMLElement``.
 The `check_empty` parameter of the `has_dimension` is there to indicate to the handler if
 the existence check is a call to `isset()` or `empty()` and the handler must implement the logic
 for determining if the value is falsy or not.
+This is error-prone, and indeed `PDORow` did not implement the logic for handling calls to `empty()`
+properly. [1:https://github.com/php/php-src/pull/13512]
 
 The ``write_dimension`` handler is also responsible for the appending operation,
 in which case the ``offset`` parameter is the `NULL` pointer.
@@ -445,8 +450,8 @@ This effectively means that the `read_dimension` handler must handle every possi
 and possibly not having an offset.
 
 The complexity of these requirements for the `read_dimension` handler are generally not understood,
-and was the source of a bug in `PDORow` which did a NULL pointer dereference.
-(TODO Fix and link)
+and was the source of a bug in `PDORow` which did a NULL pointer dereference for fetch-append operations.
+[1:https://github.com/php/php-src/pull/13512]
 
 The only extension that properly implements all this complexity is SimpleXML
 and uses it to support auto-vivification of XML elements.
@@ -455,6 +460,17 @@ One additional requirement all overridden dimension handlers need to follow is t
 forward calls to userland methods if a child class implements `ArrayAccess`.
 If not, the child class's ArrayAccess methods are never called.
 Such bugs have existed in ext/dom. (TODO Fix and link)
+
+One additional pitfall that is common to all dimension handlers is the need to call `ZVAL_DEREF()`
+on the offset `zval*` so that when PHP references are used they work properly.
+This requirement wasn't followed by `DOMNodeMap` and `DOMNodeList` [1:https://github.com/php/php-src/pull/13511],
+`ResourceBundle` [1:https://github.com/php/php-src/pull/13503],
+`PDORow` [1:https://github.com/php/php-src/pull/13512].
+Moreover, some extensions do dereference the offset, but only indirectly, and it is not know if
+this was done on purpose or happens to work, for example `FFI\CData` dereferences them via the call to
+`zval_get_long()`.
+Meanwhile `SplObjectStorage` fallbacks to calling the method instead of using the C handler,
+which will dereference the reference as the parameter is by-value.
 
 ### Userland classes that implement ArrayAccess
 
