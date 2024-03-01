@@ -9,3 +9,6 @@
  - Deprecate bool to string implicit coercions
  - Change `exit()` to function
  - Warn when int to float loses precision + introduce SAFE_INTEGER constant like JS
+ - Deprecate `InfiniteIterator`
+ - Change `eval()` to a function that can be disabled
+ - Object serialization overhaul
