@@ -35,8 +35,10 @@ There was a proposal recently to expose this flag by introducing the
 [`#[NotSerializable]` attribute](https://wiki.php.net/rfc/not_serializable)
 which gathered mixed reception.
 One issue with this CE flag is that once it is set, there is no way to remove it.
-This was an issue with DOM (TODO LINK AND EXPLAIN) for which the solution was to remove the CE flag,
-and implement throwing `__sleep()` and `__wakeup()` methods, as those could be overridden.
+This was an issue with [DOMNode](https://github.com/php/php-src/issues/8996)
+for which the solution was to remove the CE flag, and implement throwing
+[`__sleep()` and `__wakeup()` methods](https://github.com/php/php-src/pull/12388),
+as those could be overridden.
 
 One proposed alternative to the `#[NotSerializable]` attribute,
 is to add a "marker" interface named `NotSerializable`,
@@ -70,6 +72,9 @@ of `__sleep()` and `__wakeup()` and is more capable.
 
 To reduce the confusion about how one hooks into the serialization mechanism for objects
 we propose to deprecate `__sleep()` and `__wakeup()` in favour of `__serialize()` and `__unserialize()` respectively.
+
+A deprecation notice would _only_ be emitted if `__sleep()` and `__wakeup()` are defined
+without also defining `__serialize()` and `__unserialize()`.
 
 ### Add the `#[NotSerializable]` attribute
 
