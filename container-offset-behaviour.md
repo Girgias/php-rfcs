@@ -16,6 +16,8 @@ The objectives of this RFC is to explain the current complicated behaviour,
 behaviour that we deem consistent and easy to reason about,
 and intermediate steps to go from the current behaviour to the desired target behaviour.
 
+### Operations
+
 We consider there to be nine (9) different operations that relate to containers and offsets,
 which are the following:
 
@@ -29,21 +31,20 @@ which are the following:
 - Fetch
 - Fetch-Append
 
-// TODO Add fetching and fetch-appending operations
-// TODO Add ++/-- operations (need tests) a FETCH_DIM_RW happens?
-TODO: Figure out what is called when doing `$r = &$container[$offset1]`? A: Write op is done but the read handler is called
-
-The reason for splitting the existence check operation into two distinct operations is that the behaviour sometimes differ between using ``iseet()``/``empty()`` and ``??``.
-
-Fetching happens when retrieving a reference to the content of an offset,
-this happens in the obvious `$ref = &$container[$offset]`, but also when doing write/unset operations
-on nested dimension (e.g. `$container[$offset1][$offset2]`).
+A fetch operation occurs when reference to the offset must be acquired,
+be that explicitly when taking a reference (e.g. `$r = &$container[$offset]`),
+or when writing/appending/unsetting to sub-dimensions (e.g. `$container[$offset1][$offset2] = $value`
+the first offset `$container[$offset1]` will be accessed via a fetch operation).
 
 The peculiar fetch-append operation happens when retrieving a reference of an append operation.
 For example `$r = &$container[];`, or a more common use `$container[][$offset] = $value`.
 
 In general, a nested operation will perform all the necessary fetch/read operations,
 interpreting the returned value as a container, until it reaches the final dimension.
+
+The reason for splitting the existence check operation into two distinct operations is that the behaviour sometimes differ between using ``iseet()``/``empty()`` and ``??``.
+
+### Container types
 
 We consider there to exist thirteen (13) different types of containers:
 
@@ -61,6 +62,8 @@ We consider there to exist thirteen (13) different types of containers:
 - Internal objects that override at least one, but not all the following object handlers: `read_dimension`, `write_dimension`, `has_dimension`, or `unset_dimension`
 - Internal objects that override all the following object handlers: `read_dimension`, `write_dimension`, `has_dimension`, and `unset_dimension`
 - ``ArrayObject`` as its behaviour is rather peculiar
+
+### Offset types
 
 Finally, we consider there to exist the standard eight (8) built-in types in PHP for offsets, namely:
 
@@ -429,6 +432,10 @@ for determining if the value is falsy or not.
 This is error-prone, and indeed `PDORow` did not implement the logic for handling calls to `empty()`
 properly. [1:https://github.com/php/php-src/pull/13512]
 
+// TODO It is also required to check if the offset *does* exist but is IS_NULL
+// Something that can be error prone e.g. PDO Row (again)
+// Maybe not bad, as this can be done in userland with __isset()
+
 The ``write_dimension`` handler is also responsible for the appending operation,
 in which case the ``offset`` parameter is the `NULL` pointer.
 Therefore, it is possible for an internal object to allowing writing to an offset,
@@ -515,9 +522,38 @@ Notice: Indirect modification of overloaded element of ClassName has no effect i
 
 ### ArrayObject
 
-TODO, mess as it interfaces between the world of ArrayAccess and object handlers.
-And also implements an ``append()`` method that is not called with the ``$o[] = $v``
-syntax.
+ArrayObject has some peculiar behaviour as it attempts to mimic the built-in `array`
+type by implementing various interfaces and object handlers.
+It also allows to use another object as the backing "array"
+where offsets correspond to properties of the passed object.
+
+This feature is currently implemented in such a way that it breaks
+assumptions surrounding objects.
+Indeed, ArrayObject will write to the property HashTable directly,
+by-passing any write restrictions on the property.
+This includes overwriting `readonly` properties that have been already set,
+overwriting typed properties with values of incorrect types,
+suppressing dynamic properties deprecation notices,
+and ignoring any `__set()` or `__get()` magic methods.
+
+ArrayObject has an `append()` method that can be called to append values to it.
+However, counterintuitively, this method **is not** called when using the append
+operations `$ArrayObject[] = $value`, as the method that is actually called is
+`offsetSet(null, $value)`.
+This gets even more confusing when subclassing ArrayObject and redefining `append()`
+to modify the default appending behaviour.
+
+Moreover, attempting to call `append()` when the backing array is another object,
+correctly throws an `Error: Cannot append properties to objects, use ArrayObject::offsetSet() instead`,
+but when using the appending operator this error does not get thrown.
+
+Another problem is that `offsetSet()` cannot distinguish between using `null` as an explicit offset
+or being provided by default for the appending operation,
+it treats both of these cases as an appending operations.
+This leads to an inconsistency as one can set a value to an offset of `null`,
+but not be able to read it, as for read operations `null` gets converted to an empty string,
+like for the built-in array type.
+
 
 ## Ideal behaviour
 
@@ -761,6 +797,16 @@ TODO: ext/ffi CData might need to be converted to an interface and have concrete
 
 TODO: After going through ArrayObject hell
 
+- Implement the new interfaces
+- Call `append()` for the appending operation (following the new `Appendable` interface)
+- When using an object as a backing value:
+  - Throw Error on appending 
+  - Emit dynamic properties warning when using an object as a backing value
+  - Throw Error on writing to `readonly` properties
+  - Throw Error on writing a value of the wrong type to a typed property
+- Fix `null` offset handling
+- Continue to ignore any `__set()`/`__get()` magic methods
+
 ### Changes in PHP 9.0
 
 Promote all warnings to `Error`
@@ -777,6 +823,8 @@ VOTING_SNIPPET
 
 Phase out `ArrayAccess`
 c.f. https://wiki.php.net/rfc/phase_out_serializable
+
+Deprecate `ArrayObject`
 
 ## References
 
