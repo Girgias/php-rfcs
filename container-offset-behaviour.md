@@ -432,9 +432,11 @@ for determining if the value is falsy or not.
 This is error-prone, and indeed `PDORow` did not implement the logic for handling calls to `empty()`
 properly. [1:https://github.com/php/php-src/pull/13512]
 
-// TODO It is also required to check if the offset *does* exist but is IS_NULL
-// Something that can be error prone e.g. PDO Row (again)
-// Maybe not bad, as this can be done in userland with __isset()
+One other requirement of the `has_dimension` is to return `false` if the offset exists but the value
+at this offset is `null`, this is to mimic the semantics of `isset()`.
+However, this is error-prone (e.g. `PDORow` didn't implement this logic correctly)
+and also prevents supporting objects in `array_key_exists()` as this function explicitly does *not*
+check the value pointed to by the offset.
 
 The ``write_dimension`` handler is also responsible for the appending operation,
 in which case the ``offset`` parameter is the `NULL` pointer.
@@ -520,11 +522,51 @@ the following a notice is emitted:
 Notice: Indirect modification of overloaded element of ClassName has no effect in %s on line %d
 ```
 
+Note the behaviour with `isset()`, this implies that the `offsetExists($offset)` method *must* return `false`
+if the backing value is `null`. As such the following implementation of ArrayAccess is *incorrect*:
+```php
+class A implements ArrayAccess {
+    private array $a = [];
+    
+    public function offsetSet($offset, $value): void {
+        var_dump(__METHOD__);
+        $this->a[$offset] = $value;
+    }
+    public function offsetGet($offset): mixed {
+        var_dump(__METHOD__);
+        return $this->a[$offset];
+    }
+    public function offsetUnset($offset): void {
+        var_dump(__METHOD__);
+        unset($this->a[$offset]);
+    }
+    public function offsetExists($offset): bool {
+        var_dump(__METHOD__);
+        return array_key_exists($offset, $this->a);
+    }
+}
+```
+
+Indeed, the following call sequence would break the "expectations" of `isset()` by returning `true`:
+```php
+$a = new A();
+
+$a[3] = null;
+var_dump(isset($a[3]));
+```
+
+This behaviour is confusing to users and has been reported as bug for
+[`WeakMap`](https://github.com/php/php-src/issues/8437).
+Moreover, SplObjectStorage, does not behave according to those expectations.
+
+TODO Verify SplObjectStorage
+
 ### ArrayObject
 
 ArrayObject has some peculiar behaviour as it attempts to mimic the built-in `array`
 type by implementing various interfaces and object handlers.
-It also allows to use another object as the backing "array"
+
+Moreover, it allows to use another object as the backing "array"
 where offsets correspond to properties of the passed object.
 
 This feature is currently implemented in such a way that it breaks
@@ -554,6 +596,33 @@ This leads to an inconsistency as one can set a value to an offset of `null`,
 but not be able to read it, as for read operations `null` gets converted to an empty string,
 like for the built-in array type.
 
+One final problem with ArrayObject is the implementation around `isset()`,
+when using it without a backing object, it works as intended and like an array.
+However, when using a backing object any offset that correspond to a declared property
+is considered to exist, even if it is an uninitialized typed property.
+
+The following code:
+```php
+class T {
+    public int $p;
+}
+
+$o = new T();
+$a = new ArrayObject();
+
+$a = new ArrayObject($o);
+var_dump(isset($a['p']));
+var_dump($a['p']);
+```
+
+results in the following behaviour:
+```text
+bool(true)
+
+Warning: Undefined array key "p" in /in/TAhLLS on line 13
+NULL
+```
+while keeping the typed property in an uninitialized state.
 
 ## Ideal behaviour
 
@@ -657,7 +726,6 @@ typedef struct _zend_class_dimensions_functions {
 	bool  (*has_dimension)(zend_object *object, zval *offset);
 	zval *(*fetch_dimension)(zend_object *object, zval *offset, zval *rv);
 	void  (*write_dimension)(zend_object *object, zval *offset, zval *value);
-	/* rv is a slot provided by the callee that is returned */
 	void  (*append)(zend_object *object, zval *value);
 	zval *(*fetch_append)(zend_object *object, zval *rv);
 	void  (*unset_dimension)(zend_object *object, zval *offset);
@@ -665,9 +733,12 @@ typedef struct _zend_class_dimensions_functions {
 ```
 
 Some key distinctions to note with those new handlers and how the engine would behave.
-The `has_dimension` handler does not know if it is being called with `empty()`,
-instead if the offset exists, the `read_dimension` is called and then the value of it is checked if it is falsy.
+The `has_dimension` handler does not know if it is being called with `empty()`.
+And it's *only* duty is to indicate if the offset exists or not, not check that the value is `null` or falsy for `empty()`.
+In both cases, if the offset exists, the `read_dimension` is called and then the value of it is checked if it is `null`/falsy.
 Similarly, the null coalesce operator also behaves this way, meaning the `read_dimension` handler is only ever called for reads.
+
+The fetch and fetch append handlers would be called during fetching operations instead of the read handler.
 
 ## Motivations
 
@@ -691,6 +762,18 @@ Moreover, `array` already behaves this way.
 
 This adds implementation complexity on the part of the handler,
 and can lead to unintuitive semantics if the handler considers non-falsy things empty.
+
+Moreover, this is a requirement if we ever want to make `empty()` not a language construct and just a simple function.
+
+### Remove `isset()` handling for `has_dimension` object handlers
+
+As show-cased the requirement to return `false` if the offset exist but is `null`
+is largely misunderstood and affects userland by requirement them to propagate this behaviour to their implementation
+of `offsetExists()`.
+This adds implementation complexity on the part of the handler,
+and can lead to unintuitive semantics if the handler considers `null` to be set,
+while also preventing the widening of the `$array` parameter type of `array_key_exists()` from `array` to
+`array|DimensionReadable`, something that has been requested by userland. [1:https://externals.io/message/122435]
 
 Moreover, this is a requirement if we ever want to make `empty()` not a language construct and just a simple function.
 
@@ -806,6 +889,13 @@ TODO: After going through ArrayObject hell
   - Throw Error on writing a value of the wrong type to a typed property
 - Fix `null` offset handling
 - Continue to ignore any `__set()`/`__get()` magic methods
+
+#### ArrayAccess changes
+
+TODO: Need to think
+
+- Extends `DimensionReadable`, `DimensioWriteable`, `DimensionUnsettable`
+- Adds legacy handle to support fetching and appending unless the corresponding interfaces have been implemented
 
 ### Changes in PHP 9.0
 
