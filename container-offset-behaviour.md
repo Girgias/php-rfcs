@@ -5,7 +5,10 @@
 - Author: Gina Peter Banyard <girgias@php.net>
 - Status: Draft
 - Target Version: PHP 8.4
-- Implementation: <https://github.com/php/php-src/pull/7173>
+- Implementations:
+  - New handler API: <https://github.com/Girgias/php-src/pull/19>
+  - `ArrayObject`: <https://github.com/php/php-src/pull/12037>
+  - Original string offset clean-up PR: <https://github.com/php/php-src/pull/7173>
 - First Published at: <http://wiki.php.net/rfc/container-offset-behaviour>
 
 ## Introduction
@@ -93,6 +96,7 @@ Finally, we consider there to exist the standard eight (8) built-in types in PHP
 - `object`
 
 Note: the behaviour of integer strings used as offsets for arrays being automatically converted to `int` is out of scope for this RFC.
+Meaning the behaviour of the string `"15"` being cast to the integer `15` when used as an `array` offset will not change.
 
 
 ## Current behaviour
@@ -467,6 +471,10 @@ However, this is error-prone (e.g. `PDORow` didn't implement this logic correctl
 and also prevents supporting objects in `array_key_exists()` as this function explicitly does *not*
 check the value pointed to by the offset.
 
+This requirement is explicitly violated in `SplObjectStorage` with a comment explaining that
+because `SplObjectStorage::offsetExists()` is an alias of `SplObjectStorage::contains()`
+the `has_dimension` handler returns `true` even if the value is `null`.
+
 #### The `write_dimension` handler
 
 The ``write_dimension`` handler is also responsible for the appending operation,
@@ -507,8 +515,13 @@ and uses it to support auto-vivification of XML elements.
 
 For classes that are not final, all overridden dimension handlers must
 forward calls to the userland methods if a child class implements `ArrayAccess`.
-If not, the child class's ArrayAccess methods are never called.
+If not, the child class's `ArrayAccess` methods are never called.
 Such bugs have existed in ext/dom. (TODO Fix and link)
+
+To help with this case, the `zend_class_arrayaccess_funcs` struct is populated with
+the `zend_function *` pointers of the overloaded methods when `ArrayAccess` is implemented.
+And the corresponding pointer on the `zend_class_entry` is set to point to this allocated struct.
+However, as far as we can tell only SPL actually uses this.
 
 One additional pitfall that is common to all dimension handlers is the need to call `ZVAL_DEREF()`
 on the offset `zval*` so that when PHP references are used they work properly.
@@ -556,8 +569,8 @@ The interface methods are called in the following way for the different operatio
 - Fetch Append:
   the `ArrayAccess::offsetGet($offset)` method is called with `$offset` being equal to `null`
 
-Because `ArrayAccess::offsetGet($offset)` is called for fetching operations, and if it does not return an object or by-reference,
-the following a notice is emitted:
+Because `ArrayAccess::offsetGet($offset)` is called for fetching operations, if it does not return an object or by-reference,
+the following notice is emitted:
 ```text
 Notice: Indirect modification of overloaded element of ClassName has no effect in %s on line %d
 ```
@@ -566,7 +579,7 @@ Of note is the behaviour with `isset()`.
 Because the value at the offset is never checked via a call to `offsetGet()`,
 a correct implementation of the `offsetExists($offset)` method that follows the general `isset()` semantics,
 *must* return `false` if the backing value is `null`.
-As such the following implementation of ArrayAccess is *incorrect*:
+As such the following implementation of `ArrayAccess` is semantically *incorrect*:
 ```php
 class A implements ArrayAccess {
     private array $a = [];
@@ -590,7 +603,7 @@ class A implements ArrayAccess {
 }
 ```
 
-Indeed, the following call sequence would break the "expectations" of `isset()` by returning `true`:
+Indeed, the following call sequence would break the expectations of `isset()` by returning `true`:
 ```php
 $a = new A();
 
@@ -600,17 +613,14 @@ var_dump(isset($a[3]));
 
 This behaviour is confusing to users and has been reported as a bug for
 [`WeakMap`](https://github.com/php/php-src/issues/8437).
-Moreover, SplObjectStorage, does not behave according to those expectations.
-
-TODO Verify SplObjectStorage
 
 ### ArrayObject
 
-ArrayObject has some peculiar behaviour as it attempts to mimic the built-in `array`
+`ArrayObject` has some peculiar behaviour as it attempts to mimic the built-in `array`
 type by implementing various interfaces and object handlers.
 
 Moreover, it allows to use another object as the backing "array"
-where offsets correspond to properties of the passed object.
+in which case offsets correspond to properties of the passed object.
 
 This feature is currently implemented in such a way that it breaks
 assumptions surrounding objects.
@@ -662,51 +672,146 @@ results in the following behaviour:
 ```text
 bool(true)
 
-Warning: Undefined array key "p" in /in/TAhLLS on line 13
+Warning: Undefined array key "p" in FILE on line LINE
 NULL
 ```
 while keeping the typed property in an uninitialized state.
 
-## Ideal behaviour
+## Ideal semantics
 
-### Invalid container types
+In this section we present semantics for containers and how offsets
+should behave for this sort of container, that are easy
+to reason about and remember.
 
-Trying to use an invalid container type as a container should throw a `TypeError`
-for every single operation, regardless of the type of the offset.
+Valid container types are:
+- `array`
+- `string`
+- `object` that implement an interface indicating it can be used as a container
 
-This includes using `false` as a container.
+### Arrays
 
-The error message should be standardized to be consistent and descriptive for all types.
-One possibility is `Cannot use value of type TYPE as an array`.
+The semantics of arrays are mostly unchanged,
+except in regard to the handling of offset types.
 
-### null type as a container
-
-For read, and read-write operations a `TypeError` should be thrown.
-The current behaviour for `null` as container for other operations should be identical.
-
-### Array
-
-Valid offset types should only be ``int`` and ``string``,
-other offset types should throw a ``TypeError``,
+Valid offset types for array are `int` and `string`,
+all other offset types throw a `TypeError`;
 regardless of the operation being performed.
+
 
 ### Strings
 
-Valid offset types should only be ``int``,
-other offset types should throw a ``TypeError``,
+The semantics of strings are mostly unchanged,
+except in regard to the handling of offset types.
+
+The only valid offset type for strings is `int`,
+all other offset types throw a `TypeError`;
 regardless of the operation being performed.
 
-### Objects container improvements
 
-#### For userland
+### `null`
+
+The semantics of `null` are mostly unchanged.
+It continues to support auto-vivification to `array`, except for read, read-write, and fetch operations;
+in which case a `TypeError` is thrown about invalid access of an offset on `null`.
+Meaning that auto-vivification to `array` is supported for write, append, and fetch-append operations.
+
+Moreover, it continues to short-cut nested dimension checks with existence check operations.
+
+TODO: Should fetch operation still be supported? \
+TODO: Should read-write operation still be supported?
+
+### Objects
+
+Objects should be able to implement an interface for each corresponding operation they support:
+- Read and existence checks
+- Write
+- Appending
+- Unsetting
+- Appending
+- Fetching
+- Fetch appending
+
+If an object is used in a container operation and does not implement the corresponding interface,
+a `TypeError` is thrown.
+
+Existence checks for `isset()`/`empty()` and the null coalesce operator `??` should follow the following algorithm:
+
+- Call method to verify the offset exists:
+  - If it does not exist: return `false` (`true` for `empty()`)
+  - Otherwise: call method to get value of offset:
+    - If the value is `null` (or falsy for `empty()`) return `false` (`true` for `empty()`)
+    - Otherwise: return `true` (`false` for `empty()`)
+
+The following algorithm is easily understood and means general assumptions about the existence
+check method are valid.
+
+### Invalid container types
+
+This corresponds to all other types and objects that do not implement an interface
+indicating it can be used as a container.
+
+This should throw a `TypeError` for every single operation, regardless of the type of the offset.
+
+Ideally, the error message is standardized to be consistent and descriptive for all types.
+
+One possibility is `Cannot use value of type TYPE as an array`.
+
+
+## Motivations
+
+TODO: Flesh this out and rewrite this
+
+The over-arching goal of the proposed semantics is to make it obvious and intuitive
+what will happen when using offsets and containers in PHP.
+
+### Throwing Errors for invalid container types for all operations
+
+This should be self-explanatory, attempting to use a type which is not a container as a container is a programming error.
+
+This is also true when actually checking for the existence of an offset.
+
+### Throwing Errors for invalid offset types for all operations
+
+Similarly, using invalid offset types on a container is a programming error,
+regardless of checking for the existence of an offset or not.
+
+Moreover, `array` already behaves this way.
+
+### Remove custom support for `empty()` in object handlers
+
+This adds implementation complexity on the part of the handler,
+and can lead to unintuitive semantics if the handler considers non-falsy things empty.
+
+Moreover, this is a requirement if we ever want to make `empty()` not a language construct and just a simple function.
+
+### Remove `isset()` handling for `has_dimension` object handlers
+
+As show-cased the requirement to return `false` if the offset exist but is `null`
+is largely misunderstood and affects userland by requiring them to propagate this behaviour to their implementation
+of `offsetExists()`.
+This adds implementation complexity on the part of the handler,
+and can lead to unintuitive semantics if the handler considers `null` to be set,
+while also preventing the widening of the `$array` parameter type of `array_key_exists()` from `array` to
+`array|DimensionReadable`, something that has been requested by userland. [1:https://externals.io/message/122435]
+
+## Migration path
+
+To go from the current semantics and behaviour to the desired semantics we propose
+the following changes for PHP 8.4, and PHP 9.0:
+
+### Changes in PHP 8.4
+
+#### Changes to objects
+
+##### Add granular interfaces
 
 Introduce new, more granular, interfaces:
- - `DimensionReadable`: which would have the equivalent of `offsetGet()` and `offsetExists()`
- - `DimensionWritable`: which would have the equivalent of `offsetSet()`
- - `DimensionUnsetable`: which would have the equivalent of `offsetUnset()`
- - `Appendable`: which would have a single method `append(mixed $value): mixed` that is called when appending
- - `DimensionFetchable`: which would extend `DimensionReadable` and have a method that returns by-reference
- - `FetchAppendable`: which would extend `Appendable` and have a method that returns by-reference the appended value
+- `DimensionReadable`: which would have the equivalent of `offsetGet()` and `offsetExists()`
+- `DimensionWritable`: which would have the equivalent of `offsetSet()`
+- `DimensionUnsetable`: which would have the equivalent of `offsetUnset()`
+- `Appendable`: which would have a single method `append(mixed $value): mixed` that is called when appending
+- `DimensionFetchable`: which would extend `DimensionReadable` and have a method that returns by-reference
+- `FetchAppendable`: which would extend `Appendable` and have a method that returns by-reference the appended value
 
 ```php
 interface DimensionReadable
@@ -743,25 +848,30 @@ interface FetchAppendable extends Appendable
 ```
 
 Ideally, we would want the interfaces to have generic types,
-as this would allow TypeErrors to be thrown by the engine without needing
+as this would allow `TypeErrors` to be thrown by the engine without needing
 to manually handle the type of the offset and/or value.
 
 However, `mixed` allows us to migrate to generic types if we ever get them.
 
-Intersection types makes the addition and usage of more granular interfaces possible.
+Intersection and DNF types makes the addition and usage of more granular interfaces possible.
 
 Those new interfaces and methods provide clearer semantics and behaviour that is known
 to be supported or not by the class, while simplifying the implementation of said classes.
 
-#### For internals and extensions
+Cross-version compatible code can use DNF types to type their input arguments, e.g:
+```php
+function foo(ArrayAccess|(DimensionReadable&DimensionWritable)) {
+    /* Do something useful */
+}
+```
 
-If the object does not support being used as a container then the handlers should
-be the ``NULL`` pointer.
-Moreover, the object should implement the relevant interfaces for the capabilities
-that it supports.
+##### Changes to internal objects
 
-For this purpose, we move all the `_dimension` handlers to the `zend_class_entry` structure,
-we also add new handlers which correspond to the above interface which are all defined in a new struct:
+Currently, the dimension handlers have a default handler which makes it difficult to
+know if an object supports certain dimension handlers.
+
+Therefore, we move the handlers out of the `zend_object_handlers` structure and into the `zend_class_entry` structure.
+We add new handlers which correspond to the above interfaces which are all defined in a new struct:
 ```c
 typedef struct _zend_class_dimensions_functions {
 	/* rv is a slot provided by the callee that is returned */
@@ -775,119 +885,75 @@ typedef struct _zend_class_dimensions_functions {
 } zend_class_dimensions_functions;
 ```
 
-Some key distinctions to note with those new handlers and how the engine would behave.
-The `has_dimension` handler does not know if it is being called with `empty()`.
-And it's *only* duty is to indicate if the offset exists or not, not check that the value is `null` or falsy for `empty()`.
-In both cases, if the offset exists, the `read_dimension` is called and then the value of it is checked if it is `null`/falsy.
-Similarly, the null coalesce operator also behaves this way, meaning the `read_dimension` handler is only ever called for reads.
+If the object does not support being used as a container then the pointer for the `zend_class_dimensions_functions`
+should be the ``NULL`` pointer. Otherwise, it should be allocated and be populated with function pointers for
+the operations that are supported, and the `NULL` pointer for operations that are not.
 
-The fetch and fetch append handlers would be called during fetching operations instead of the read handler.
+Moreover, the object should implement the relevant interfaces for the capabilities that it supports.
+This is relatively straight forward for all bundled extensions except for ext/ffi as the `CData` class
+is used to represent scalar data but also arrays and pointer types, which do overload the dimension handlers.
 
-## Motivations
+The new handlers are slightly different from the existing one,
+as it is designed to reduce implementation complexity of the handlers.
+The `has_dimension` handler does not know if it is being called with `empty()`,
+as this is meaningless with the algorithm that is implemented.
+Its only duty is to indicate if the offset exists or not, not check if the backed value is `null` or `falsy`.
+Moreover, it is also called with the null coalesce operator.
 
-The over-arching goal of the proposed semantics is to make it obvious and intuitive
-what will happen when using offsets and containers in PHP.
+This change means that the `read_dimension` doesn't need to know in what context it is called,
+as it will only ever be called in a read context.
+Because the fetch and fetch append handlers would be called during fetching operations instead of the read handler.
 
-### Throwing Errors for invalid container types for all operations
 
-This should be self-explanatory, attempting to use a type which is not a container as a container is a programming error.
+##### Internal objects must implement the relevant interfaces
 
-This is also true when actually checking for the existence of an offset.
+This will be checked in DEBUG builds of PHP.
 
-### Throwing Errors for invalid offset types for all operations
+TODO: ext/ffi CData might need to be converted to an interface and have concrete final classes
+for different data before this can be done.
 
-Similarly, using invalid offset types on a container is a programming error,
-regardless of checking for the existence of an offset or not.
+##### Changes to `ArrayObject`
 
-Moreover, `array` already behaves this way.
+The introduction of the new interfaces and handlers allows us to fix part of the implementation of `ArrayObject`
+to follow the usual semantics of `array` and not break assumptions around objects:
 
-### Remove custom support for `empty()` in object handlers
+- Implement the new interfaces
+- Call `append()` for the appending operation (following from the new `Appendable` interface)
+- Fix `null` offset handling (following from the proper support of the appending operation)
+- When using an object as a backing value:
+  - Throw `Error` on appending
+  - Emit dynamic properties warning when using an object as a backing value that does not allow dynamic properties
+  - Throw `Error` on writing to `readonly` properties
+  - Throw `Error` on writing a value of the wrong type to a typed property
+- Continue to ignore any `__set()`/`__get()` magic methods
 
-This adds implementation complexity on the part of the handler,
-and can lead to unintuitive semantics if the handler considers non-falsy things empty.
+Most of these changes are implemented as [PR-12037](https://github.com/php/php-src/pull/12037).
 
-Moreover, this is a requirement if we ever want to make `empty()` not a language construct and just a simple function.
+##### Changes to `ArrayAccess`
 
-### Remove `isset()` handling for `has_dimension` object handlers
+Supporting `ArrayAccess` in a backwards compatibility way is slightly tricky.
+It is effectively extending `DimensionReadable`, `DimensioWriteable`, and `DimensionUnsettable`,
+but it also "supports" appending, fetching, and fetch-appending.
 
-As show-cased the requirement to return `false` if the offset exist but is `null`
-is largely misunderstood and affects userland by requirement them to propagate this behaviour to their implementation
-of `offsetExists()`.
-This adds implementation complexity on the part of the handler,
-and can lead to unintuitive semantics if the handler considers `null` to be set,
-while also preventing the widening of the `$array` parameter type of `array_key_exists()` from `array` to
-`array|DimensionReadable`, something that has been requested by userland. [1:https://externals.io/message/122435]
+Our solution is to add legacy dimension handlers to classes that implement `ArrayAccess`
+reproducing the current behaviour for appending, fetching and fetch-appending;
+except if the class also implements one of the new dedicated interfaces.
 
-Moreover, this is a requirement if we ever want to make `empty()` not a language construct and just a simple function.
+#### Changes to array offset handling
 
-## Migration path
-
-To go from the current semantics and behaviour to the desired semantics we propose
-the following changes for PHP 8.4, and PHP 9.0:
-
-### Changes in PHP 8.4
-
-#### Add granular interfaces
-
-Add the interfaces that were described in the Objects container improvements section.
-
-Cross-version compatible code can use DNF types to type their input arguments, e.g:
-```php
-function foo(ArrayAccess|(DimensionReadable&DimensionWritable)) {
-    /* Do something useful */
-}
-```
-
-#### Disallow resources to be used as offsets
+##### Disallow resources to be used as array offsets
 
 Considering the phasing out of resources,
 resources being generally considered equivalent as objects,
-a warning having been emitted for using resources as offset,
+and a warning having been emitted for using resources as offset,
 we propose to promote this warning to a TypeError in PHP 8.4.
 
-This removes variations and complexity to the engine.
+This removes variations and a lot of complexity to the engine.
 
-#### Disallow leading numeric strings to be used as string offsets
+The `array_key_exists()` function is also affected and would have the `resource`
+type removed from the union type for the `$key` parameter.
 
-Considering the prolonged existence of notice/warnings when using numeric strings,
-and the fact `isset()/empty()` is completely broken with such offsets,
-we propose to promote this warning to the usual `Cannot access offset of type %s on string` error.
-
-#### Normalize the behaviour of invalid string offsets
-
-This effectively means that non integer-numeric strings used as an offset for strings
-with the null coalesce operator `??` would throw the following error:
-```
-Cannot access offset of type %s on string
-```
-
-#### Emit warning on read-write operations on `null` container
-
-Emit the same warning as a simple read operation when using `null` as a container:
-```
-Warning: Trying to access array offset on null
-```
-
-#### Improved error messages
-
-// TODO better, specify operation first? So it is generic with objects which do not implement all interfaces
-
-Standardize error message for invalid containers to be:
-```
-Type TYPE cannot be used as an array, attempted to OPERATION
-```
-Where `OPERATION` is one of the following:
- - `read offset of type TYPE on it`
- - `write offset of type TYPE on it`
- - `unset offset of type TYPE on it`
- - `check existence of offset of type TYPE on it`
- - `append value to it`
- - TODO: `fetch`
- - TODO: `fetch append`
-
-// TODO: Improve messages for invalid offset types
-
-#### Emit warnings for invalid offset types on arrays
+##### Emit warnings for invalid offset types on arrays
 
 Emit the following warnings when using invalid offsets on an array,
 this includes `null`, `bool`, and `float` types:
@@ -896,49 +962,67 @@ this includes `null`, `bool`, and `float` types:
 Warning: offset of type TYPE has been cast to (int|string)
 ```
 
-#### Emit warning for checking existence of string offset with invalid offset types
+#### Changes to string offset handling
 
+##### Disallow leading numeric strings to be used as string offsets
+
+Considering the prolonged existence of notice/warnings when using numeric strings,
+and the fact `isset()/empty()` is completely broken with such offsets,
+we propose to promote this warning to the usual `Cannot access offset of type %s on string` error.
+
+##### Normalize the behaviour of invalid string offsets
+
+This effectively means that non integer-numeric strings used as an offset for strings
+with the null coalesce operator `??` would throw the following error:
+```
+Cannot access offset of type %s on string
+```
+
+##### Emit warning for checking existence of string offset with invalid offset types
+
+Emit a warning when using invalid offsets on a string during existence check operations:
 ```
 Cannot access offset of type TYPE on string in isset or empty
 ```
 
+#### Emit warning on fetch and read-write operations on `null` container
+
+Emit the same warning as a simple read operation when using `null` as a container:
+```
+Warning: Trying to access array offset on null
+```
+
 #### Emit warnings for checking existence of offsets on invalid container types
 
-This includes `false`, `true`, `int`, `float`, and `resource`.
-
-// TODO: Warning message, see Improve error messages section
-```
-Warning: type TYPE cannot be used like an array
-```
+Emit a warning when using invalid offsets on an invalid container during existence check operations
+as it is a programming error.
 
 Note: this does *not* include `null`, which will continue to short-cut existence checks.
 
-#### Internal objects must implement the relevant interfaces
+#### Improved error messages
 
-This will be checked in DEBUG builds
+TODO: How much should we improve those?
 
-TODO: ext/ffi CData might need to be converted to an interface and have concrete final classes for different data.
+Standardize error message for invalid containers to be:
+```
+Cannot use value of type TYPE as an array
+```
 
-#### ArrayObject changes
+TODO: Should it specify the operation, which might be needed for object messages to make sense
+```text
+Type TYPE cannot be used as an array when performing a OPERATION operation
+```
+Where `OPERATION` is one of the following:
+ - `read`
+ - `write`
+ - `unset`
+ - `append value to it`
+ - `fetch`
+ - `fetch append`
+- `check existence` TODO: This is awkward
 
-TODO: After going through ArrayObject hell
+TODO: Should there be special error messages if the issue is with the offset type?
 
-- Implement the new interfaces
-- Call `append()` for the appending operation (following the new `Appendable` interface)
-- When using an object as a backing value:
-  - Throw Error on appending 
-  - Emit dynamic properties warning when using an object as a backing value
-  - Throw Error on writing to `readonly` properties
-  - Throw Error on writing a value of the wrong type to a typed property
-- Fix `null` offset handling
-- Continue to ignore any `__set()`/`__get()` magic methods
-
-#### ArrayAccess changes
-
-TODO: Need to think
-
-- Extends `DimensionReadable`, `DimensioWriteable`, `DimensionUnsettable`
-- Adds legacy handle to support fetching and appending unless the corresponding interfaces have been implemented
 
 ### Changes in PHP 9.0
 
