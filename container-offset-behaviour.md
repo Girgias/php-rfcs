@@ -672,7 +672,7 @@ results in the following behaviour:
 ```text
 bool(true)
 
-Warning: Undefined array key "p" in FILE on line LINE
+Warning: Undefined array key "p" in %s on line %d
 NULL
 ```
 while keeping the typed property in an uninitialized state.
@@ -759,40 +759,39 @@ One possibility is `Cannot use value of type TYPE as an array`.
 
 ## Motivations
 
-TODO: Flesh this out and rewrite this
+We think that the proposed ideal semantics would make it obvious and intuitive for what would happen
+when using offsets and containers in PHP.
 
-The over-arching goal of the proposed semantics is to make it obvious and intuitive
-what will happen when using offsets and containers in PHP.
+We will slightly expand on the motivation for certain changes.
 
 ### Throwing Errors for invalid container types for all operations
 
 This should be self-explanatory, attempting to use a type which is not a container as a container is a programming error.
 
-This is also true when actually checking for the existence of an offset.
+This is applicable even when checking for the existence of an offset.
 
 ### Throwing Errors for invalid offset types for all operations
 
 Similarly, using invalid offset types on a container is a programming error,
 regardless of checking for the existence of an offset or not.
 
-Moreover, `array` already behaves this way.
+Moreover, `array` offsets already behaves this way.
 
-### Remove custom support for `empty()` in object handlers
+### Change requirements for the `has_dimension` handler
 
-This adds implementation complexity on the part of the handler,
-and can lead to unintuitive semantics if the handler considers non-falsy things empty.
-
-Moreover, this is a requirement if we ever want to make `empty()` not a language construct and just a simple function.
-
-### Remove `isset()` handling for `has_dimension` object handlers
+The current requirements are very confusing and unintuitive.
 
 As show-cased the requirement to return `false` if the offset exist but is `null`
 is largely misunderstood and affects userland by requiring them to propagate this behaviour to their implementation
 of `offsetExists()`.
-This adds implementation complexity on the part of the handler,
-and can lead to unintuitive semantics if the handler considers `null` to be set,
-while also preventing the widening of the `$array` parameter type of `array_key_exists()` from `array` to
-`array|DimensionReadable`, something that has been requested by userland. [1:https://externals.io/message/122435]
+Handling this correctly adds implementation complexity as the `has_dimension` handler needs to effectively be able to perform read operations,
+and if it doesn't it can lead to unintuitive semantics if the handler considers `null` to be set.
+These semantics also preventing the widening of the `$array` parameter type of `array_key_exists()` to
+accept objects that support accessing offsets, something that has been requested by userland. [1:https://externals.io/message/122435]
+
+Needing to handle `empty()` suffers most of the same implementation pitfalls and unintuitive semantics if the handler considers non-falsy things empty.
+Moreover, if we ever want to make `empty()` a simple function an object handler cannot influence on its behaviour.
+
 
 ## Migration path
 
