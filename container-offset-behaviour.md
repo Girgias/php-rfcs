@@ -727,7 +727,6 @@ Objects should be able to implement an interface for each corresponding operatio
 - Write
 - Appending
 - Unsetting
-- Appending
 - Fetching
 - Fetch appending
 
@@ -827,7 +826,7 @@ interface DimensionFetchable extends DimensionReadable
 
 interface DimensionWritable
 {
-    public function offsetWrite(mixed $offset, mixed $value): void;
+    public function offsetSet(mixed $offset, mixed $value): void;
 }
 
 interface DimensionUnsetable
