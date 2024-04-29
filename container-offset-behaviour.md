@@ -505,7 +505,7 @@ This effectively means that the `read_dimension` handler must handle every possi
 and possibly not having an offset.
 
 The complexity of these requirements for the `read_dimension` handler are generally not understood,
-and was the source of a bug in `PDORow` which did a NULL pointer dereference for fetch-append operations.
+and was the source of a bug in `PDORow` which did a `NULL` pointer dereference for fetch-append operations.
 [1:https://github.com/php/php-src/pull/13512]
 
 The only extension that properly implements all this complexity is SimpleXML
@@ -516,7 +516,7 @@ and uses it to support auto-vivification of XML elements.
 For classes that are not final, all overridden dimension handlers must
 forward calls to the userland methods if a child class implements `ArrayAccess`.
 If not, the child class's `ArrayAccess` methods are never called.
-Such bugs have existed in ext/dom. (TODO Fix and link)
+Such bugs exist in ext/dom, and it is not clear how to fix them.
 
 To help with this case, the `zend_class_arrayaccess_funcs` struct is populated with
 the `zend_function *` pointers of the overloaded methods when `ArrayAccess` is implemented.
@@ -717,8 +717,7 @@ Meaning that auto-vivification to `array` is supported for write, append, and fe
 
 Moreover, it continues to short-cut nested dimension checks with existence check operations.
 
-TODO: Should fetch operation still be supported? \
-TODO: Should read-write operation still be supported?
+TODO: Should fetch operation still be supported?
 
 ### Objects
 
@@ -902,14 +901,6 @@ This change means that the `read_dimension` doesn't need to know in what context
 as it will only ever be called in a read context.
 Because the fetch and fetch append handlers would be called during fetching operations instead of the read handler.
 
-
-##### Internal objects must implement the relevant interfaces
-
-This will be checked in DEBUG builds of PHP.
-
-TODO: ext/ffi CData might need to be converted to an interface and have concrete final classes
-for different data before this can be done.
-
 ##### Changes to `ArrayObject`
 
 The introduction of the new interfaces and handlers allows us to fix part of the implementation of `ArrayObject`
@@ -999,28 +990,34 @@ Note: this does *not* include `null`, which will continue to short-cut existence
 
 #### Improved error messages
 
-TODO: How much should we improve those?
-
-Standardize error message for invalid containers to be:
+Part of this RFC will be to improve error messages and indicate if the
+value cannot be used as an array:
 ```
 Cannot use value of type TYPE as an array
 ```
 
-TODO: Should it specify the operation, which might be needed for object messages to make sense
+And if the specific operation is not supported the error would ressemble:
+
 ```text
-Type TYPE cannot be used as an array when performing a OPERATION operation
+Cannot OPERATION offset of type TYPE on value of type TYPE
 ```
-Where `OPERATION` is one of the following:
- - `read`
- - `write`
- - `unset`
- - `append value to it`
- - `fetch`
- - `fetch append`
-- `check existence` TODO: This is awkward
 
-TODO: Should there be special error messages if the issue is with the offset type?
+### Changes in a future version of PHP 8
 
+#### Internal objects must implement the relevant interfaces
+
+This requirement would be checked in DEBUG builds of PHP.
+
+The main reason for not making this a hard requirement with the other proposed changes for PHP 8.4
+is that the `CData` class from the FFI extension is an opaque class that interfaces with different
+C data types, such as scalars, C arrays, and pointers.
+
+However, blindly adding the new dimension interfaces to indicate that offsets can always be accessed
+would be a lie, as CData backing scalar data types can not be accessed in this manner.
+
+To properly support this, it requires refactoring the `CData` class into a sealed interface and have
+concrete class implementation for the different sorts of C data types,
+e.g. `CScalar`, `CArray`, `CPointer`.
 
 ### Changes in PHP 9.0
 
@@ -1036,10 +1033,10 @@ VOTING_SNIPPET
 
 ## Future scope
 
-Phase out `ArrayAccess`
-c.f. https://wiki.php.net/rfc/phase_out_serializable
+Ideas proposed in this section are not part of the RFC and may be something to do as a follow-up to this RFC.
 
-Deprecate `ArrayObject`
+- Phase out `ArrayAccess`, c.f. https://wiki.php.net/rfc/phase_out_serializable
+- Deprecate `ArrayObject`
 
 ## References
 
