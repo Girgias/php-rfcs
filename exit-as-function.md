@@ -19,7 +19,7 @@ with status code `0` and the string is printed to STDOUT.
 
 However, because `exit()` is not a proper function it cannot be called with named argument,
 passed to functions as a `callable`, does not respect the `strict_types` declare,
-and most confusingly it does not follow the usual type juggling semantics.
+and most confusingly, it does not follow the usual type juggling semantics.
 
 Indeed, any value which is *not* an integer, is cast to a string.
 This means passing an array or a resource to `exit()` will not throw a `TypeError`
@@ -31,7 +31,7 @@ for a `string|int` union type, this is something that we find especially confusi
 boolean `$has_error` variable that is passed to `exit()` with the assumption `false` will be coerced to `0`
 and `true` coerced to `1`.
 
-Finally, the need for `exit()` to be a language construct with its own dedicated opcode is not a requirement anymore
+Finally, the need for `exit()` to be a language construct with its own dedicated opcode is not a requirement any more
 since PHP 8.0 as the opcode throws a special kind of exception which cannot be caught,
 ((https://github.com/php/php-src/pull/5768))
 nor executes `finally` blocks, to unwind the stack normally.
