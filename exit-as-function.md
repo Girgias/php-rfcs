@@ -46,16 +46,16 @@ function exit(string|int $status = 0): never {}
 And to make `die()` an alias of `exit()`, transform "constant" usages of `exit`/`die` to function calls at compile time.
 
 It will continue to be impossible to declare `exit` or `die` functions in namespaces,
-or disable/remove them via the `disable_functions` INI directive. 
+or disable/remove them via the `disable_functions` INI directive.
+
+Moreover, as `exit` and `die` will no longer be keywords, it will be possible to use them as `goto` labels.
+
+Another slight improvement is that the AST printing (seen via `assert()`)
+now reflects what has actually been written in the source code rather than always using `exit`. 
 
 ## Backward Incompatible Changes
 
 The impact of this RFC is deemed to be low.
-
-Various types would now throw a `TypeError` instead of being cast to a string:
-- passing `resource`s to `exit()` will now throw a `TypeError`
-- passing `array`s to `exit()` will now throw a `TypeError`
-
 
 The `T_EXIT` token will be removed because `exit` will no longer need to be parsed specially by the lexer.
 As most PHP libraries that deal on an AST level use Nikita Popov's `php-parser` which creates its own AST,
@@ -63,12 +63,29 @@ this should have minimal impact on userland tooling.
 
 Projects that directly use the tokenizer extensions, like Exakat, will need some straight-forward adaptation.
 
+And the behaviour of value of different types passed to `exit()` will be altered to match the usual type juggling semantics:
+
+| Argument passed       | Current behaviour | New behaviour | Consequences                                                                                                                         |
+|-----------------------|-------------------|---------------|--------------------------------------------------------------------------------------------------------------------------------------|
+| int                   | int               | int           | No change, interpreted as exit code                                                                                                  |
+| string                | string            | string        | No change, interpreted as status message                                                                                             |
+| bool                  | string            | int           | Was status message, now exit code                                                                                                    |
+| float                 | string            | int           | Was status message, now exit code, with a possible `"Implicit conversion from float to int loses precision"` deprecation notice        |
+| null                  | string            | int           | Was status message, now exit code, with `"Passing null to parameter #1 ($status) of type string|int is deprecated"` deprecation notice |
+| stringable object     | string            | string        | No change, interpreted as status message                                                                                             |
+| non-stringable object | TypeError         | TypeError     | None                                                                                                                                 |
+| array                 | string            | TypeError     | Was status message with warning, now TypeError                                                                                       |
+| resource              | string            | TypeError     | Was status message with warning, now TypeError                                                                                       |
+
+
 ## Future scope
 
 These are ideas for future proposals that are *not* part of this RFC:
 
 - Deprecate using `exit` as a "constant"
-- Execute `finally` blocks for `exit`s  
+- Execute `finally` blocks for `exit`s
+- Allow disabling `exit()`/`die()` functions via the `disable_functions` INI directive, similarly to how it is possible to disable `assert()`
+
 
 ## Version
 
