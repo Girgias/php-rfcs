@@ -10,14 +10,14 @@
 
 ## Introduction
 
-The `exit` (and it's alias `die`) language construct can be used on its own as a "constant"
+The `exit` language construct (and its alias `die`) can be used on its own as a "constant"
 ((We are using this terminology as it can be used in any place where an expression is expected, like a constant: https://3v4l.org/sL9Q5))
 to terminate a PHP script with status code `0`, or it can be used like a "function" which accepts an
 optional argument `$status` that can either be an integer, in which case the PHP script will be terminated
 with the given integer as the status code, or it can be a string, in which case the PHP script is terminated
 with status code `0` and the string is printed to STDOUT.
 
-However, because `exit()` is not a proper function it cannot be called with named argument,
+However, because `exit()` is not a proper function it cannot be called with a named argument,
 passed to functions as a `callable`, does not respect the `strict_types` declare,
 and most confusingly, it does not follow the usual type juggling semantics.
 
@@ -26,15 +26,14 @@ This means passing an array or a resource to `exit()` will not throw a `TypeErro
 but print `Array` or `Resource id #%d` respectively with the relevant warning being emitted.
 However, it does throw a `TypeError` for non-`Stringable` objects.
 
-Moreover, arguments of type `bool` are cast to `string` instead of `int` violating the standard type juggling semantics
-for a `string|int` union type, this is something that we find especially confusing for CLI scripts that may have a
-boolean `$has_error` variable that is passed to `exit()` with the assumption `false` will be coerced to `0`
+Furthermore, arguments of type `bool` are cast to `string` instead of `int`, violating the standard type juggling semantics
+for a `string|int` union type. This is something that we find especially confusing for CLI scripts which may have a
+boolean `$has_error` variable passed to `exit()` with the assumption that `false` will be coerced to `0`
 and `true` coerced to `1`.
 
-Finally, the need for `exit()` to be a language construct with its own dedicated opcode is not a requirement any more
-since PHP 8.0 as the opcode throws a special kind of exception which cannot be caught,
-((https://github.com/php/php-src/pull/5768))
-nor executes `finally` blocks, to unwind the stack normally.
+Finally, the need for `exit()` to be a language construct with its own dedicated opcode is not a requirement anymore
+since PHP 8.0, as (in order to unwind the stack normally) the opcode throws a special kind of exception which cannot be caught,
+nor executes `finally` blocks. ((https://github.com/php/php-src/pull/5768))
 
 ## Proposal
 
@@ -43,7 +42,7 @@ We propose to make `exit()` a proper function with the following signature:
 function exit(string|int $status = 0): never {}
 ```
 
-And to make `die()` an alias of `exit()`, transform "constant" usages of `exit`/`die` to function calls at compile time.
+Secondly, `die()` will be made an alias of `exit()`, and "constant" usages of `exit`/`die` transformed to function calls at compile time.
 
 It will continue to be impossible to declare `exit` or `die` functions in namespaces,
 or disable/remove them via the `disable_functions` INI directive.
@@ -63,7 +62,7 @@ this should have minimal impact on userland tooling.
 
 Projects that directly use the tokenizer extensions, like Exakat, will need some straight-forward adaptation.
 
-And the behaviour of value of different types passed to `exit()` will be altered to match the usual type juggling semantics:
+And the behaviour of values of different types passed to `exit()` will be altered to match the usual type juggling semantics:
 
 | Argument passed       | Current behaviour | New behaviour | Consequences                                                                                                                         |
 |-----------------------|-------------------|---------------|--------------------------------------------------------------------------------------------------------------------------------------|
