@@ -901,6 +901,40 @@ This change means that the `read_dimension` doesn't need to know in what context
 as it will only ever be called in a read context.
 Because the fetch and fetch append handlers would be called during fetching operations instead of the read handler.
 
+Another consequence of using the new algorithm is that some idiosyncratic code that produces side effects
+in the `had_dimension` handler might not work as before,
+this also applies to userland classes implementing `ArrayAccess`.
+For example, the following code:
+```php
+class Test implements ArrayAccess {
+    public function offsetExists($x): bool { $GLOBALS["name"] = 24; return true; }
+    public function offsetGet($x): mixed { var_dump($x); return 42; }
+    public function offsetSet($x, $y): void { }
+    public function offsetUnset($x): void { }
+}
+
+$obj = new Test;
+$name = "foo";
+var_dump($obj[$name] ?? 12);
+var_dump($name);
+```
+
+currently produces the following output:
+```
+string(3) "foo"
+int(42)
+int(24)
+```
+
+however, with the new algorithm, would produce this output:
+```
+int(24)
+int(42)
+int(24)
+```
+
+As the `offsetExists()` wasn't called before, but now is.
+
 ##### Changes to `ArrayObject`
 
 The introduction of the new interfaces and handlers allows us to fix part of the implementation of `ArrayObject`
@@ -927,6 +961,35 @@ but it also "supports" appending, fetching, and fetch-appending.
 Our solution is to add legacy dimension handlers to classes that implement `ArrayAccess`
 reproducing the current behaviour for appending, fetching and fetch-appending;
 except if the class also implements one of the new dedicated interfaces.
+
+##### Changes to `SplObjectStorage`
+
+As mentioned previously, the current implementation of `SplObjectStorage::offsetExists()`
+violates the expectations of `isset()`, however with the implementation of the new algorithm
+this is fixed, which leads to a behavioural change.
+
+Moreover, `SplObjectStorage` defines the following methods which are aliases to the dimension handler methods:
+
+- `SplObjectStorage::contains()` for `SplObjectStorage::offsetExists()`
+- `SplObjectStorage::detatch()` for `SplObjectStorage::offsetUnset()`
+- `SplObjectStorage::attach()` for `SplObjectStorage::offsetSet()`
+
+However, extending `SplObjectStorage` and overwriting one of the alias methods does _not_ modify
+the behaviour of using the offset access operators.
+As such we propose to deprecate the aliases in favour of the normal offset methods.
+
+##### Changes to `MultipleIterator`
+
+The implementation of `MultipleIterator` shares the same internal object handlers as `SplObjectStorage`.
+This means it also supported the various offset access operators as a consequence.
+As the dimension handlers would no longer be part of the object handlers,
+this results in `MultipleIterator` not supporting them any longer.
+
+As it does not implement `ArrayAccess` and there are no tests covering this behaviour,
+it seems to us that this iterator was never designed to be accessed with the offset access operators.
+
+As such we do not intend to formally implement any interfaces and support for using offset access operators
+with `MultipleIterator` objects would be removed.
 
 #### Changes to array offset handling
 
