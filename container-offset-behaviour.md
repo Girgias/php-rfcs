@@ -117,18 +117,12 @@ For the purpose of this section,
 and `resource` are considered to be a "scalar" types,
 as the engine treats those container types identically.
 
-- For read operations, `null` is returned and the following warning is emitted:
-  ```
-  Warning: Trying to access array offset on TYPE
-  ```
-- For write, read-write, appending, fetch, and fetch-append operations, the following error is thrown:
-  ```
-  Cannot use a scalar value as an array
-  ```
-- For the unset operation, the following error is thrown:
-  ```
-  Cannot unset offset in a non-array variable
-  ```
+- For read operations, `null` is returned and the following warning is emitted: ```Warning: Trying to access array offset on TYPE```
+
+- For write, read-write, appending, fetch, and fetch-append operations, the following error is thrown:```Cannot use a scalar value as an array```
+
+- For the unset operation, the following error is thrown:```Cannot unset offset in a non-array variable```
+
 - For existence operations, no warning is emitted and the behaviour is as if the offset did not exist.
 
 #### Classes that do not implement ArrayAccess and Internal objects which do not implement any dimension object handler
@@ -145,21 +139,15 @@ PHP supports a feature called auto-vivification to `array` when writing to an of
 
 Therefore, the behaviour depending on the operator is as follows:
 
-- For read operations, `null` is returned, the container continues to be `null`, and the following warning is emitted:
-  ```
-  Warning: Trying to access array offset on null
-  ```
-- For write, append, fetch, and fetch-append operations the container is converted to array.
-  And thus behave like an `array`, meaning the behaviour depends on the offset type.
-  Please see the `array` section for details.
-- For read-write operations, the container is converted to array,
-  before the read operation.
-  And thus behave like an `array`, meaning the behaviour depends on the offset type.
-  Please see the `array` section for details.
-- For the unset operation, the container continues to be `null`
-  and no warning or error is emitted/thrown.
-- For existence operations, no warning is emitted
-  and the behaviour is as if the offset did not exist.
+- For read operations, `null` is returned, the container continues to be `null`, and the following warning is emitted: ```Warning: Trying to access array offset on null```
+
+- For write, append, fetch, and fetch-append operations the container is converted to array. And thus behave like an `array`, meaning the behaviour depends on the offset type. Please see the `array` section for details.
+
+- For read-write operations, the container is converted to array, before the read operation. And thus behave like an `array`, meaning the behaviour depends on the offset type. Please see the `array` section for details.
+
+- For the unset operation, the container continues to be `null` and no warning or error is emitted/thrown.
+
+- For existence operations, no warning is emitted and the behaviour is as if the offset did not exist.
 
 ### false as container
 
@@ -168,33 +156,14 @@ however this was
 [deprecated in PHP 8.1](https://wiki.php.net/rfc/autovivification_false).
 
 Therefore, the behaviour depending on the operator is as follows:
-- For read operations, `null` is returned,
-   the container continues to be `false`, and the following warning is emitted:
-   ```
-   Warning: Trying to access array offset on false
-   ```
+- For read operations, `null` is returned, the container continues to be `false`, and the following warning is emitted: ```Warning: Trying to access array offset on false```
 
-- For write, append, fetch, and fetch-append operations the container is converted to array,
-  Emitting the following deprecation notice:
-  ```
-  Deprecated: Automatic conversion of false to array is deprecated
-  ```
-  And thus behave like an `array`, meaning the behaviour depends on the offset type.
-  Please see the `array` section for details.
+- For write, append, fetch, and fetch-append operations the container is converted to array, Emitting the following deprecation notice:```Deprecated: Automatic conversion of false to array is deprecated``` And thus behave like an `array`, meaning the behaviour depends on the offset type. Please see the `array` section for details.
 
 - For read-write operations, the container is converted to array, before the read operation,
-  Emitting the following deprecation notice:
-  ```
-  Deprecated: Automatic conversion of false to array is deprecated
-  ```
-  And thus behave like an `array`, meaning the behaviour depends on the offset type.
-  Please see the `array` section for details.
+  Emitting the following deprecation notice: ```Deprecated: Automatic conversion of false to array is deprecated``` And thus behave like an `array`, meaning the behaviour depends on the offset type.  Please see the `array` section for details.
 
-- For the unset operation, the container continues to be `false`
-  and the following deprecation notice is emitted:
-  ```
-  Deprecated: Automatic conversion of false to array is deprecated
-  ```
+- For the unset operation, the container continues to be `false` and the following deprecation notice is emitted: ```Deprecated: Automatic conversion of false to array is deprecated```
 
 - For existence operations, no warning is emitted and the behaviour is as if the offset did not exist.
 
@@ -269,36 +238,17 @@ However, the behaviour in regard to string offsets is extremely inconsistent and
 To showcase the current behaviour we will explain the behaviour by going through each different offset type.
 
 Moreover, some operations are invalid on string offsets:
- - Read-Write operations on a string offset will throw the following error:
-   ```
-   Cannot use assign-op operators with string offsets
-   ```
- - Unset operations on a string offset will throw the following error:
-   ```
-   Cannot unset string offsets
-   ```
- - The append and fetch-append operations will throw the following error:
-   ```
-   [] operator not supported for strings
-   ```
- - Fetch operations will throw different errors depending on the fetch operation,
-   *after* the type of the offset has been checked:
-   - For attempting to retrieve a reference to a string offset:
-     ```
-     Cannot create references to/from string offsets
-     ```
-   - For attempting to use the string offset as a container:
-     ```
-     Cannot use string offset as an array
-     ```
-   - For attempting to use the string offset as an object:
-     ```
-     Cannot use string offset as an object
-     ```
-   - For attempting to use increment or decrement the string offset:
-     ```
-     Cannot increment/decrement string offsets
-     ```
+ - Read-Write operations on a string offset will throw the following error: ```Cannot use assign-op operators with string offsets```
+
+ - Unset operations on a string offset will throw the following error: ```Cannot unset string offsets```
+
+ - The append and fetch-append operations will throw the following error: ```[] operator not supported for strings```
+
+ - Fetch operations will throw different errors depending on the fetch operation, *after* the type of the offset has been checked:
+   - For attempting to retrieve a reference to a string offset: ```Cannot create references to/from string offsets```
+   - For attempting to use the string offset as a container: ```Cannot use string offset as an array```
+   - For attempting to use the string offset as an object: ```Cannot use string offset as an object```
+   - For attempting to use increment or decrement the string offset: ```Cannot increment/decrement string offsets```
 
 Attempting to read a non initialized string offset emits the following warning:
 ```
@@ -542,33 +492,25 @@ The four interface methods roughly correspond to the four relevant dimension obj
 
 The interface methods are called in the following way for the different operations:
 
-- Read:
-  the `ArrayAccess::offsetGet($offset)` method is called with `$offset` being equal to the value between `[]`
-- Write:
-  the `ArrayAccess::offsetSet($offset, $value)` method is called with `$offset` being equal to the value between `[]`
-  and `$value` being the value that is being assigned to the offset. 
-- Read-Write:
-  the `ArrayAccess::offsetGet($offset)` method is called with `$offset` being equal to the value between `[]`,
-  the binary operation is then performed, and if the binary operation succeeds
-  the `ArrayAccess::offsetSet($offset, $value)` method is called with `$value` being the result of the binary operation 
-- Appending:
-  the `ArrayAccess::offsetSet($offset, $value)` method is called with `$offset` being equal to `null`
-  and `$value` being the value that is being appended to the container.
-- Unsetting:
-  the `ArrayAccess::offsetUnset($offset)` method is called with `$offset` being equal to the value between `[]`
-- Existence checks via isset():
-  the `ArrayAccess::offsetExists($offset)` method is called with `$offset` being equal to the value between `[]`
-- Existence checks via empty():
-  the `ArrayAccess::offsetExists($offset)` method is called with `$offset` being equal to the value between `[]`
-  if `true` is returned, a call to `ArrayAccess::offsetGet($offset)` is made to check the value is falsy or not.
-- Existence checks via the null coalesce operator `??`:
-  the `ArrayAccess::offsetExists($offset)` method is called with `$offset` being equal to the value between `[]`
-  if `true` is returned, a call to `ArrayAccess::offsetGet($offset)` is made to retrieve the value.
-  (Note this is handled by the default `read_dimension` object handler instead of the `has_dimension` handler)
-- Fetch:
-  the `ArrayAccess::offsetGet($offset)` method is called with `$offset` being equal to the value between `[]`
-- Fetch Append:
-  the `ArrayAccess::offsetGet($offset)` method is called with `$offset` being equal to `null`
+- Read: the `ArrayAccess::offsetGet($offset)` method is called with `$offset` being equal to the value between `[]`
+
+- Write: the `ArrayAccess::offsetSet($offset, $value)` method is called with `$offset` being equal to the value between `[]` and `$value` being the value that is being assigned to the offset. 
+
+- Read-Write: the `ArrayAccess::offsetGet($offset)` method is called with `$offset` being equal to the value between `[]`, the binary operation is then performed, and if the binary operation succeeds the `ArrayAccess::offsetSet($offset, $value)` method is called with `$value` being the result of the binary operation 
+
+- Appending: the `ArrayAccess::offsetSet($offset, $value)` method is called with `$offset` being equal to `null` and `$value` being the value that is being appended to the container.
+
+- Unsetting: the `ArrayAccess::offsetUnset($offset)` method is called with `$offset` being equal to the value between `[]`
+
+- Existence checks via isset(): the `ArrayAccess::offsetExists($offset)` method is called with `$offset` being equal to the value between `[]`
+
+- Existence checks via empty(): the `ArrayAccess::offsetExists($offset)` method is called with `$offset` being equal to the value between `[]` if `true` is returned, a call to `ArrayAccess::offsetGet($offset)` is made to check the value is falsy or not.
+
+- Existence checks via the null coalesce operator `??`: the `ArrayAccess::offsetExists($offset)` method is called with `$offset` being equal to the value between `[]` if `true` is returned, a call to `ArrayAccess::offsetGet($offset)` is made to retrieve the value. (Note this is handled by the default `read_dimension` object handler instead of the `has_dimension` handler)
+
+- Fetch: the `ArrayAccess::offsetGet($offset)` method is called with `$offset` being equal to the value between `[]`
+
+- Fetch Append: the `ArrayAccess::offsetGet($offset)` method is called with `$offset` being equal to `null`
 
 Because `ArrayAccess::offsetGet($offset)` is called for fetching operations, if it does not return an object or by-reference,
 the following notice is emitted:
