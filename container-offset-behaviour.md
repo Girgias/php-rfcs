@@ -711,13 +711,11 @@ regardless of the operation being performed.
 ### `null`
 
 The semantics of `null` are mostly unchanged.
-It continues to support auto-vivification to `array`, except for read, read-write, and fetch operations;
+It continues to support auto-vivification to `array`, except for read, and read-write operations;
 in which case a `TypeError` is thrown about invalid access of an offset on `null`.
-Meaning that auto-vivification to `array` is supported for write, append, and fetch-append operations.
+Meaning that auto-vivification to `array` is supported for write, append, fetch, and fetch-append operations.
 
 Moreover, it continues to short-cut nested dimension checks with existence check operations.
-
-TODO: Should fetch operation still be supported?
 
 ### Objects
 
@@ -959,8 +957,9 @@ It is effectively extending `DimensionReadable`, `DimensioWriteable`, and `Dimen
 but it also "supports" appending, fetching, and fetch-appending.
 
 Our solution is to add legacy dimension handlers to classes that implement `ArrayAccess`
-reproducing the current behaviour for appending, fetching and fetch-appending;
-except if the class also implements one of the new dedicated interfaces.
+reproducing the current behaviour for appending, fetching and fetch-appending.
+However, if one of the new interfaces is implemented for dedicated support to appending, fetching,
+and fetch-appending, then the new behaviour is used.
 
 ##### Changes to `SplObjectStorage`
 
@@ -1002,7 +1001,7 @@ we propose to promote this warning to a TypeError in PHP 8.4.
 
 This removes variations and a lot of complexity to the engine.
 
-The `array_key_exists()` function is also affected and would have the `resource`
+The `array_key_exists()` function, and any objects mimicking array offsets, is also affected and would have the `resource`
 type removed from the union type for the `$key` parameter.
 
 ##### Emit warnings for invalid offset types on arrays
@@ -1037,7 +1036,7 @@ Emit a warning when using invalid offsets on a string during existence check ope
 Cannot access offset of type TYPE on string in isset or empty
 ```
 
-#### Emit warning on fetch and read-write operations on `null` container
+#### Emit warning on read-write operations on `null` container
 
 Emit the same warning as a simple read operation when using `null` as a container:
 ```
@@ -1049,7 +1048,7 @@ Warning: Trying to access array offset on null
 Emit a warning when using invalid offsets on an invalid container during existence check operations
 as it is a programming error.
 
-Note: this does *not* include `null`, which will continue to short-cut existence checks.
+Note: this does *not* include `null` as a container, which will continue to short-cut existence checks.
 
 #### Improved error messages
 
