@@ -46,7 +46,7 @@ which are the following:
 The read, write, read-write, appending, and unsetting operations are what one would expect.
 
 We split the existence check operation into two distinct sub-operations as the behaviour between
-``iseet()``/``empty()`` and the null coalesce operator ``??`` is sometimes different.
+``isset()``/``empty()`` and the null coalesce operator ``??`` is sometimes different.
 
 A fetch operation occurs when reference to the offset must be acquired,
 be that explicitly when taking a reference (e.g. `$r = &$container[$offset]`),
@@ -144,7 +144,7 @@ PHP supports a feature called auto-vivification to `array` when writing to an of
 
 Therefore, the behaviour depending on the operator is as follows:
 
-- For read operations,`null` is returned, the container continues to be `null`, and the following warning is emitted:
+- For read operations, `null` is returned, the container continues to be `null`, and the following warning is emitted:
   ```
   Warning: Trying to access array offset on null
   ```
@@ -167,7 +167,7 @@ however this was
 [deprecated in PHP 8.1](https://wiki.php.net/rfc/autovivification_false).
 
 Therefore, the behaviour depending on the operator is as follows:
-- For read operations,`null` is returned,
+- For read operations, `null` is returned,
    the container continues to be `false`, and the following warning is emitted:
    ```
    Warning: Trying to access array offset on false
@@ -900,7 +900,7 @@ as it will only ever be called in a read context.
 Because the fetch and fetch append handlers would be called during fetching operations instead of the read handler.
 
 Another consequence of using the new algorithm is that some idiosyncratic code that produces side effects
-in the `had_dimension` handler might not work as before,
+in the `has_dimension` handler might not work as before,
 this also applies to userland classes implementing `ArrayAccess`.
 For example, the following code:
 ```php
@@ -1058,7 +1058,7 @@ value cannot be used as an array:
 Cannot use value of type TYPE as an array
 ```
 
-And if the specific operation is not supported the error would ressemble:
+And if the specific operation is not supported the error would resemble:
 
 ```text
 Cannot OPERATION offset of type TYPE on value of type TYPE
