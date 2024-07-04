@@ -26,6 +26,9 @@ const REGEXES = [
     // Internal URLS
     '/\[(.+)\]\((?:https?):\/\/wiki\.php\.net\/rfc\/(.+)\)/' => '[[rfc:${2}|${1}]]',
     '/\[(.+)\]\((.+)\)/' => '[[${2}|${1}]]',
+    // Clean-up
+    // DokuWiki doesn't tolerate code in titles
+    '/^(={1,6}.*)(?:<php>)(.*)(?:<\/php>)(.*={1,6})$/m' => '${1}${2}${3}',
 ];
 
 $TITLE_START_OFFSET = strlen('# PHP RFC: ');
