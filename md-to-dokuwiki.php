@@ -67,6 +67,14 @@ function convert_md_to_php_dokuwiki(string $input): string {
         $output,
     );
 
+    // Fix C pointer code after italics for container offset RFC
+    $output = str_replace(
+        ['//(//', 'zval //', 'zend_object //', 'void  (//', 'bool  (//'],
+        ['*(*', 'zval *', 'zend_object *', 'void  (*', 'bool  (*'],
+        $output,
+    );
+
+
     // Voting snippet
     $offset_first_newline = strpos($input, "\n");
     $title = substr($input, TITLE_START_OFFSET, $offset_first_newline-TITLE_START_OFFSET);
