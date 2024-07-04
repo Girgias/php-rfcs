@@ -3,13 +3,14 @@
 - Version: 0.1
 - Date: 2023-12-07
 - Author: Gina Peter Banyard <girgias@php.net>
-- Status: Draft
+- Status: Under Discussion
 - Target Version: PHP 8.4
 - Implementations:
   - New handler API: <https://github.com/Girgias/php-src/pull/19>
   - `ArrayObject`: <https://github.com/php/php-src/pull/12037>
   - Original string offset clean-up PR: <https://github.com/php/php-src/pull/7173>
 - First Published at: <http://wiki.php.net/rfc/container-offset-behaviour>
+- Markdown source: <https://github.com/Girgias/php-rfcs/blob/master/container-offset-behaviour.md>
 
 ## Introduction
 
