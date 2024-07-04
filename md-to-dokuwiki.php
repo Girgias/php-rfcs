@@ -60,6 +60,12 @@ function convert_md_to_php_dokuwiki(string $input): string {
         ['|', ']]'],
         $output,
     );
+    // Dokuwiki does not support code coloring
+    $output = str_replace(
+        ['<code>c', '<code>txt', '<code>text'],
+        '<code>',
+        $output,
+    );
 
     // Voting snippet
     $offset_first_newline = strpos($input, "\n");
