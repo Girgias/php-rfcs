@@ -876,6 +876,12 @@ int(24)
 
 As the `offsetExists()` wasn't called before, but now is.
 
+###### Removal of the `zend_class_arrayaccess_funcs` struct and CE pointer
+
+As the `zend_class_arrayaccess_funcs` struct was only used by SPL,
+and it cannot fulfill its role anymore with the new dimension handlers,
+the struct is removed and alongside it the pointer to such a struct on the `zend_class_entry`.
+
 ##### Changes to `ArrayObject`
 
 The introduction of the new interfaces and handlers allows us to fix part of the implementation of `ArrayObject`
