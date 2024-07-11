@@ -67,7 +67,6 @@ We consider there to exist thirteen (13) different types of containers:
 - `null`
 - `false`
 - `true`
-- `bool`
 - `int`
 - `float`
 - `resource`
@@ -604,8 +603,6 @@ class T {
 }
 
 $o = new T();
-$a = new ArrayObject();
-
 $a = new ArrayObject($o);
 var_dump(isset($a['p']));
 var_dump($a['p']);
