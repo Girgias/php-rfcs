@@ -966,6 +966,8 @@ This removes variations and a lot of complexity to the engine.
 The `array_key_exists()` function, and any objects mimicking array offsets, is also affected and would have the `resource`
 type removed from the union type for the `$key` parameter.
 
+Moreover, most code that expects resources as offsets already use an explicit `(int)` cast to suppress the warnings.
+
 ##### Emit warnings for invalid offset types on arrays
 
 Emit the following warnings when using invalid offsets on an array,
@@ -1046,6 +1048,32 @@ e.g. `CScalar`, `CArray`, `CPointer`.
 ### Changes in PHP 9.0
 
 Promote all warnings to `Error`
+
+## Backward Incompatible Changes
+
+A recap of the BC breaking changes being introduced in PHP 8.4:
+
+- New algorithm when calling `isset()`
+- `resource` as an offset type for arrays would throw an `Error` as of PHP 8.4
+- Trying to read offsets of a `MultipleIterator` object would throw an `Error` as of PHP 8.4
+- Leading numeric string used as an offset for strings would throw an `Error` as of PHP 8.4
+- Float numeric strings (i.e. non integer-numeric strings) used as an offset for strings would now throw an `Error` with the null coalesce operator `??` (in line with `isset()`)
+- `ArrayObject` would behave more sensibly and in line with every other PHP object, rather than being weird
+
+A recap of the new warnings being introduced in PHP 8.4:
+
+- A warning when checking the existence of an offset on invalid container types (except for `null`)
+- A warning prior to reading an undefined offset when it is part of a read-write operation
+- A warning is emitted when trying to use a value of type `null`, `bool`, or `float` as an array offset
+- A warning is emitted when trying to check the existence of string offset with invalid offset types
+
+A recap of the deprecations being introduced in PHP 8.4:
+
+- The `SplObjectStorage::contains()` method is deprecated in favour of `SplObjectStorage::offsetExists()`
+- The `SplObjectStorage::detatch()` method is deprecated in favour of `SplObjectStorage::offsetUnset()`
+- The `SplObjectStorage::attach()` method is deprecated in favour of `SplObjectStorage::offsetSet()`
+
+For details on each of those, refer to their relevant sections.
 
 ## Version
 
