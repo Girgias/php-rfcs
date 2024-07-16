@@ -908,6 +908,7 @@ to follow the usual semantics of `array` and not break assumptions around object
   - Emit dynamic properties warning when using an object as a backing value that does not allow dynamic properties
   - Throw `Error` on writing to `readonly` properties
   - Throw `Error` on writing a value of the wrong type to a typed property
+  - Throw `Error` when using an `int` as a property
 - Continue to ignore any `__set()`/`__get()` magic methods
 
 Most of these changes are implemented as [PR-12037](https://github.com/php/php-src/pull/12037).
