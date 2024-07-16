@@ -1,6 +1,6 @@
 # PHP RFC: Improve language coherence for the behaviour of offsets and containers
 
-- Version: 0.2
+- Version: 0.3
 - Date: 2023-12-07
 - Author: Gina Peter Banyard <girgias@php.net>
 - Status: Under Discussion
