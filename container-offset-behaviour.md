@@ -801,7 +801,7 @@ to be supported or not by the class, while simplifying the implementation of sai
 
 Cross-version compatible code can use DNF types to type their input arguments, e.g:
 ```php
-function foo(ArrayAccess|(DimensionReadable&DimensionWritable)) {
+function foo(ArrayAccess|(DimensionFetchable&DimensionWritable)) {
     /* Do something useful */
 }
 ```
@@ -919,8 +919,10 @@ Supporting `ArrayAccess` in a backwards compatibility way is slightly tricky.
 It is effectively extending `DimensionReadable`, `DimensioWriteable`, and `DimensionUnsettable`,
 but it also "supports" appending, fetching, and fetch-appending.
 
-Our solution is to add legacy dimension handlers to classes that implement `ArrayAccess`
-reproducing the current behaviour for appending, fetching and fetch-appending.
+The solution we came up with is for `ArrayAccess` to formally extend
+`DimensionReadable`, `DimensioWriteable`, and `DimensionUnsettable`;
+but also add legacy dimension handlers reproducing the current behaviour when appending, fetching, and fetch-appending
+such an object.
 However, if one of the new interfaces is implemented for dedicated support to appending, fetching,
 and fetch-appending, then the new behaviour is used.
 
