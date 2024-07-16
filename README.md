@@ -22,3 +22,4 @@ Use the `md-to-dokuwiki.php` script to generate DokuWiki text that *mostly* work
  - Deprecate `InfiniteIterator`
  - Change `eval()` to a function that can be disabled
  - Object serialization overhaul
+ - Deprecate implicit conversions to bool in function type juggling context
