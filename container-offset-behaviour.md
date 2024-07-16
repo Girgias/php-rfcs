@@ -31,7 +31,7 @@ To explain the current language semantics we will describe and explain the diffe
 
 ### Operations
 
-We consider there to be nine (9) different operations that relate to containers and offsets,
+We consider there to be ten (10) different operations that relate to containers and offsets,
 which are the following:
 
 - Read
@@ -43,6 +43,7 @@ which are the following:
 - Existence checks via the null coalesce operator ``??``
 - Fetch
 - Fetch-Append
+- Incrementing/Decrementing the offset of a container
 
 The read, write, read-write, appending, and unsetting operations are what one would expect.
 
@@ -59,6 +60,9 @@ For example `$r = &$container[];`, or a more common use `$container[][$offset] =
 
 In general, a nested operation will perform all the necessary fetch/read operations,
 interpreting the returned value as a container, until it reaches the final dimension.
+
+Finally, we mention incrementing/decrementing because in general it should behave like `+= 1`,
+but as it works on a "reference" of the value, the behaviour is slightly tricky.
 
 ### Container types
 
@@ -118,7 +122,7 @@ as the engine treats those container types identically.
 
 - For read operations, `null` is returned and the following warning is emitted: ```Warning: Trying to access array offset on TYPE```
 
-- For write, read-write, appending, fetch, and fetch-append operations, the following error is thrown:```Cannot use a scalar value as an array```
+- For write, read-write, appending, fetch, fetch-append, and increment/decrement operations, the following error is thrown:```Cannot use a scalar value as an array```
 
 - For the unset operation, the following error is thrown:```Cannot unset offset in a non-array variable```
 
@@ -142,7 +146,7 @@ Therefore, the behaviour depending on the operator is as follows:
 
 - For write, append, fetch, and fetch-append operations the container is converted to array. And thus behave like an `array`, meaning the behaviour depends on the offset type. Please see the `array` section for details.
 
-- For read-write operations, the container is converted to array, before the read operation. And thus behave like an `array`, meaning the behaviour depends on the offset type. Please see the `array` section for details.
+- For read-write and increment/decrement operations, the container is converted to array, before the read operation. And thus behave like an `array`, meaning the behaviour depends on the offset type. Please see the `array` section for details.
 
 - For the unset operation, the container continues to be `null` and no warning or error is emitted/thrown.
 
@@ -159,7 +163,7 @@ Therefore, the behaviour depending on the operator is as follows:
 
 - For write, append, fetch, and fetch-append operations the container is converted to array, Emitting the following deprecation notice:```Deprecated: Automatic conversion of false to array is deprecated``` And thus behave like an `array`, meaning the behaviour depends on the offset type. Please see the `array` section for details.
 
-- For read-write operations, the container is converted to array, before the read operation,
+- For read-write and increment/decrement operations, the container is converted to array, before the read operation,
   Emitting the following deprecation notice: ```Deprecated: Automatic conversion of false to array is deprecated``` And thus behave like an `array`, meaning the behaviour depends on the offset type.  Please see the `array` section for details.
 
 - For the unset operation, the container continues to be `false` and the following deprecation notice is emitted: ```Deprecated: Automatic conversion of false to array is deprecated```
@@ -510,6 +514,8 @@ The interface methods are called in the following way for the different operatio
 - Fetch: the `ArrayAccess::offsetGet($offset)` method is called with `$offset` being equal to the value between `[]`
 
 - Fetch Append: the `ArrayAccess::offsetGet($offset)` method is called with `$offset` being equal to `null`
+
+- Increment/Decrement: behaves like a fetch operation
 
 Because `ArrayAccess::offsetGet($offset)` is called for fetching operations, if it does not return an object or by-reference,
 the following notice is emitted:
@@ -878,6 +884,16 @@ As the `offsetExists()` wasn't called before, but now is.
 As the `zend_class_arrayaccess_funcs` struct was only used by SPL,
 and it cannot fulfill its role anymore with the new dimension handlers,
 the struct is removed and alongside it the pointer to such a struct on the `zend_class_entry`.
+
+##### Throw an Error when trying to increment or decrement an object offset
+
+Incrementing/decrementing an object offset results in fetch operation,
+whereas using `+=`/`-=` uses a Read-Write sequence,
+and usually when acting on object properties this is what happens.
+
+The current limitation is because we do not have sufficient specialized VM opcodes for this specific case.
+Therefore, we propose to hard error, like we do for string offsets, so that if we do add the relevant opcodes we can
+properly support the Read-Write behaviour.
 
 ##### Changes to `ArrayObject`
 
