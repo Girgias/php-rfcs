@@ -5,7 +5,7 @@ const INPUT_DIR = __DIR__ . DIRECTORY_SEPARATOR;
 
 const REGEXES = [
     // Titles
-    '/^#{6}(?: ?)(.+)$/m' => '= ${1} =',
+    '/^#{6}(?: ?)(.+)$/m' => '== ${1} ==', // DokuWiki does not support 6 level of headers
     '/^#{5}(?: ?)(.+)$/m' => '== ${1} ==',
     '/^#{4}(?: ?)(.+)$/m' => '=== ${1} ===',
     '/^#{3}(?: ?)(.+)$/m' => '==== ${1} ====',
