@@ -29,7 +29,7 @@ These are in no particular order, but they are RFCs that I want to work on soone
 - Remove usage of SPL extensions in other internal extensions
 - Warn when int to float loses precision + introduce SAFE_INTEGER constant like JS
 - Change `eval()` to a function that can be disabled
-- Make `void` an alias for `null`
+- Make `void` an alias for `null` to fix type system
 - Object serialization overhaul
 - Warn when attempting to destructure scalars
 
