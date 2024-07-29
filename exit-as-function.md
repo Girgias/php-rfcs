@@ -1,6 +1,6 @@
 # PHP RFC: Transform exit() from a language construct into a standard function
 
-- Version: 0.1
+- Version: 0.2
 - Date: 2024-05-05
 - Author: Gina Peter Banyard <girgias@php.net>
 - Status: Under Discussion
@@ -10,8 +10,8 @@
 
 ## Introduction
 
-The `exit` language construct (and its alias `die`) can be used on its own as a "constant"
-((We are using this terminology as it can be used in any place where an expression is expected, like a constant: https://3v4l.org/sL9Q5))
+The `exit` language construct (and its alias `die`) can be used on its own without parentheses 
+((which is somewhat akin to using a constant as it can be used in expressions: https://3v4l.org/sL9Q5))
 to terminate a PHP script with status code `0`, or it can be used like a "function" which accepts an
 optional argument `$status` that can either be an integer, in which case the PHP script will be terminated
 with the given integer as the status code, or it can be a string, in which case the PHP script is terminated
@@ -31,9 +31,11 @@ for a `string|int` union type. This is something that we find especially confusi
 boolean `$has_error` variable passed to `exit()` with the assumption that `false` will be coerced to `0`
 and `true` coerced to `1`.
 
-Finally, the need for `exit()` to be a language construct with its own dedicated opcode is not a requirement anymore
-since PHP 8.0, as (in order to unwind the stack normally) the opcode throws a special kind of exception which cannot be caught,
-nor executes `finally` blocks. ((https://github.com/php/php-src/pull/5768))
+Since PHP 8.0 `exit()` doesn't use the bailout mechanism anymore,
+but throws a special kind of exception which cannot be caught,
+and which does not execute `finally` blocks. ((https://github.com/php/php-src/pull/5768))
+
+Finally, there didn't seem to ever have been a necessity for `exit()` to be its own dedicated opcode.
 
 ## Proposal
 
@@ -42,27 +44,17 @@ We propose to make `exit()` a proper function with the following signature:
 function exit(string|int $status = 0): never {}
 ```
 
-Secondly, `die()` will be made an alias of `exit()`, and "constant" usages of `exit`/`die` transformed to function calls at compile time.
+Parsing of the keywords remains unchanged, but instead of being compiled to a `ZEND_EXIT` opcode they are compiled to
+a function call.
 
-It will continue to be impossible to declare `exit` or `die` functions in namespaces,
-or disable/remove them via the `disable_functions` INI directive.
-
-Moreover, as `exit` and `die` will no longer be keywords, it will be possible to use them as `goto` labels.
-
-Another slight improvement is that the AST printing (seen via `assert()`)
-now reflects what has actually been written in the source code rather than always using `exit`. 
+Therefore, it will remain impossible to declare functions named `exit` or `die` in namespaces,
+or to disable/remove them via the `disable_functions` INI directive.
 
 ## Backward Incompatible Changes
 
 The impact of this RFC is deemed to be low.
 
-The `T_EXIT` token will be removed because `exit` will no longer need to be parsed specially by the lexer.
-As most PHP libraries that deal on an AST level use Nikita Popov's `php-parser` which creates its own AST,
-this should have minimal impact on userland tooling.
-
-Projects that directly use the tokenizer extensions, like Exakat, will need some straight-forward adaptation.
-
-And the behaviour of values of different types passed to `exit()` will be altered to match the usual type juggling semantics:
+The behaviour of values of different types passed to `exit()` will be altered to match the usual type juggling semantics:
 
 | Argument passed       | Current behaviour | New behaviour | Consequences                                                                                                                         |
 |-----------------------|-------------------|---------------|--------------------------------------------------------------------------------------------------------------------------------------|
@@ -81,8 +73,8 @@ And the behaviour of values of different types passed to `exit()` will be altere
 
 These are ideas for future proposals that are *not* part of this RFC:
 
-- Deprecate using `exit` as a "constant"
-- Execute `finally` blocks for `exit`s
+- Deprecate using `exit` without parentheses
+- Execute `finally` blocks when `exit` is called
 - Allow disabling `exit()`/`die()` functions via the `disable_functions` INI directive, similarly to how it is possible to disable `assert()`
 
 
@@ -93,5 +85,9 @@ Next minor version, PHP 8.4.
 ## Vote
 
 VOTING_SNIPPET
+
+## Changelog
+
+In a prior version of this RFC the `T_EXIT` token was removed.
 
 ## Notes
