@@ -22,6 +22,7 @@ rather than introducing another declare that would create 4 different possible b
 depending on which declares are enabled or not.
 
 TODO: Check about transitivity/symmetry/reflexivity
+> https://softwareengineering.stackexchange.com/a/318651
 
 TODO Wording around:
 https://wiki.php.net/rfc/strict_operators
