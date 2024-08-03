@@ -23,3 +23,14 @@ Use the `md-to-dokuwiki.php` script to generate DokuWiki text that *mostly* work
  - Change `eval()` to a function that can be disabled
  - Object serialization overhaul
  - Deprecate implicit conversions to bool in function type juggling context
+ - Deprecate control-flow structures in `finally` blocks
+ - Remove usage of SPL extensions in other internal extensions
+ - Stop requiring parameter names in PHP interface methods
+ - Function types
+ - PDOException, fix `code` property being a `string`
+
+## Suggested RFC ideas by other people
+
+These are RFCs ideas that have been suggested during discussion offline or on the list
+
+- Split `exit()` and `die()` into distinct functions where `die()` only take strings and `exit()` only takes integers.

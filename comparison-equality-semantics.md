@@ -1,7 +1,5 @@
 # PHP RFC: New comparison and equality semantics
 
-1555 start 1725 end 1h30 total
-
 - Version: 0.1
 - Date: 2024-01-09
 - Author: Gina Peter Banyard <girgias@php.net>
@@ -23,6 +21,7 @@ and the better approach is to change the current semantics where PHP coerces typ
 rather than introducing another declare that would create 4 different possible behaviours
 depending on which declares are enabled or not.
 
+TODO: Check about transitivity/symmetry/reflexivity
 
 TODO Wording around:
 https://wiki.php.net/rfc/strict_operators
