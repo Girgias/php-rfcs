@@ -28,6 +28,7 @@ Use the `md-to-dokuwiki.php` script to generate DokuWiki text that *mostly* work
  - Stop requiring parameter names in PHP interface methods
  - Function types
  - PDOException, fix `code` property being a `string`
+ - Deprecate implicit conversions from `resource` to `string`
 
 ## Suggested RFC ideas by other people
 
