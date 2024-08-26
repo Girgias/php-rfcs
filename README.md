@@ -31,6 +31,7 @@ These are in no particular order, but they are RFCs that I want to work on soone
 - Change `eval()` to a function that can be disabled
 - Make `void` an alias for `null`
 - Object serialization overhaul
+- Warn when attempting to destructure scalars
 
 ### Remainder of ideas
 
