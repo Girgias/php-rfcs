@@ -4,9 +4,9 @@
 - Date: 2024-MM-DD
 - Author: Gina Peter Banyard <girgias@php.net>
 - Status: Under Discussion
-- Target Version: PHP 8.4
+- Target Version: PHP 8.5
 - Implementation: TBD
-- First Published at: TBD
+- First Published at: https://wiki.php.net/rfc/SLUG-FOR-RFC-TITLE
 
 ## Introduction
 
@@ -16,7 +16,7 @@
 
 ## Version
 
-Next minor version, PHP 8.4, and next major version PHP 9.0.
+Next minor version, PHP 8.5, and next major version PHP 9.0.
 
 ## Vote
 
