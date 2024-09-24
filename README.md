@@ -24,7 +24,7 @@ These are in no particular order, but they are RFCs that I want to work on soone
 
 - Comparison semantics overhaul
 - PDOException, fix `code` property being a `string`
-- Deprecate implicit conversions from `resource` to `string`
+- Warn on implicit conversions from `resource` to `string`
 - Remove assumption about multiplication `*` being commutative
 - Remove usage of SPL extensions in other internal extensions
 - Warn when int to float loses precision + introduce SAFE_INTEGER constant like JS
