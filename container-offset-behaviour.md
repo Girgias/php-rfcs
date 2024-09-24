@@ -672,9 +672,12 @@ Objects should be able to implement an interface for each corresponding operatio
 - Unsetting
 - Fetching
 - Fetch appending
+- Auto-vivification/Intermediate dimension fetch TODO still need to think about this
 
 If an object is used in a container operation and does not implement the corresponding interface,
 a `TypeError` is thrown.
+
+#### New algorithm for existence checks of an offset
 
 Existence checks for `isset()`/`empty()` and the null coalesce operator `??` should follow the following algorithm:
 
@@ -687,6 +690,17 @@ Existence checks for `isset()`/`empty()` and the null coalesce operator `??` sho
 The following algorithm is easily understood and means general assumptions about the existence
 check method are valid.
 
+#### Incrementing/Decrementing an offset should behave like a read-write operation
+
+This is so that the behaviour of `$container[$offset]++` and `$container[$offset] += 1` is identical.
+This would also mean the write is observable via the `offsetSet()` method.
+
+#### New algorithm for fetch and fetch-append operations
+
+Instead of calling the method to read an offset, we have new dedicated method.
+
+TODO I WAS DOING SOMETHING AND LEFT FOR HOLIDAYS
+
 ### Invalid container types
 
 This corresponds to all other types and objects that do not implement an interface
@@ -696,7 +710,7 @@ This should throw a `TypeError` for every single operation, regardless of the ty
 
 Ideally, the error message is standardized to be consistent and descriptive for all types.
 
-One possibility is `Cannot use value of type TYPE as an array`.
+One possibility is `Cannot fetch offset on type TYPE`.
 
 
 ## Motivations
