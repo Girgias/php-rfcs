@@ -43,6 +43,7 @@ These are in no particular order, but they are RFCs that I want to work on soone
  - Deprecate control-flow structures in `finally` blocks
  - Stop requiring parameter names in PHP interface methods
  - Function types
+ - Have array sort functions return the sorted array instead of always true
 
 ## Suggested RFC ideas by other people
 
