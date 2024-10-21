@@ -12,6 +12,7 @@
 
 The PHP array sort functions take the array to sort as a by-reference array to sort the array in place.
 However, since PHP 5.6 these function have only ever returned `true`.
+
 Moreover, it would only return `false` (or `null`) prior to this version in case of a memory allocation failure.
 This effectively means the return values of these functions are useless.
 Similarly, `array_walk()`, `array_walk_recursive()`, and `shuffle()` have only ever returned `true`
@@ -42,7 +43,7 @@ Change the return value of:
 - `array_multisort()`
 - `shuffle()`
 - `array_walk()`
-- `array_walk_recusrive()`
+- `array_walk_recursive()`
 
 from `true` to a copy of the `array` that is sorted, traversed, or shuffled.
 
@@ -54,6 +55,8 @@ Sorting an empty array and checking the return value of one of the `sort()` func
 would now be falsy rather than `true`.
 
 ## Unaffected PHP Functionality
+
+The functions continue to take the first parameter by-reference and do the sorting in-place.
 
 The sort methods from the SPL `ArrayObject` class are not affected by this change.
 
