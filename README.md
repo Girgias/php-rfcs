@@ -44,6 +44,7 @@ These are in no particular order, but they are RFCs that I want to work on soone
  - Stop requiring parameter names in PHP interface methods
  - Function types
  - Have array sort functions return the sorted array instead of always true
+ - Deprecate support for using objects as arrays `foreach`, `HASH_OF`, `Z_PARAM_ARRAY_OR_OBJECT()`, `Z_PARAM_ARRAY_OR_OBJECT_HT()`, etc.
 
 ## Suggested RFC ideas by other people
 
