@@ -1,7 +1,7 @@
 # PHP RFC: RFC_TITLE
 
 - Version: 0.1
-- Date: 2024-MM-DD
+- Date: 2025-MM-DD
 - Author: Gina Peter Banyard <girgias@php.net>
 - Status: Under Discussion
 - Target Version: PHP 8.5
