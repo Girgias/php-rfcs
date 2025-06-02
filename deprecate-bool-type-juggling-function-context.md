@@ -1,16 +1,16 @@
 # PHP RFC: Deprecate type juggling to and from bool type within the function type juggling context
 
 - Version: 0.1
-- Date: 2025-01-DD
+- Date: 2025-06-02
 - Author: Gina Peter Banyard <girgias@php.net>
 - Status: Under Discussion
 - Target Version: PHP 8.5
 - Implementation: TBD
-- First Published at: https://wiki.php.net/rfc/SLUG-FOR-RFC-TITLE
+- First Published at: https://wiki.php.net/rfc/deprecate-function-bool-type-juggling
 
 ## Introduction
 
-PHP has a few type juggling contexts which are described on the
+PHP has a few type juggling contexts, which are described on the
 [Type Juggling](https://www.php.net/manual/en/language.types.type-juggling.php)
 documentation page.
 The function type juggling context refers to the type coercion that occurs
@@ -18,7 +18,7 @@ when passing a value to a function/method argument, returning a value from
 a function/argument with a return type, and assigning a value to a typed property.
 
 In this context only scalar (`int`, `float`, `string`, and `bool`) types can be type juggled.
-However, type juggling to the singleton types `true` and `false` is not possible. 
+However, type juggling to the singleton types `true` and `false` is not possible.
 Moreover, it is possible to prevent coercion of scalar types (except for widening of `int` to `float`)
 in this context altogether by using the
 [`strict_types=1`](https://www.php.net/manual/en/language.types.declarations.php#language.types.declarations.strict)
@@ -31,10 +31,10 @@ RFC from Zend Technologies et al. in 2015 which was "competing" with the - accep
 [Scalar Type Declarations (v5)](https://wiki.php.net/rfc/scalar_type_hints_v5)
 RFC from Anthony Ferrara (based on prior work from Andrea Faulds).
 The RFC from Zend Technologies et al. proposed to ban type juggling from `float` to `bool`. [1]
-We could not determine what lead to this choice in both discussion threads, [2] [3]
-however the reply from Pierre Joye [4] may be part of the reason.
+We could not determine what led to this choice in both discussion threads, [2], [3]
+however, the reply from Pierre Joye [4] may be part of the reason.
 
-Currently only the `float` values `-0.0` and `0.0` are implicitly converted to `false`.
+Currently, only the `float` values `-0.0` and `0.0` are implicitly converted to `false`.
 This means `NAN` is converted to `true`,
 which leads to different behaviour when `NAN` is first cast to `int` and then to `bool`
 (as `(int) NAN === 0`, which is converted to `false`).
@@ -57,7 +57,7 @@ will convert to another scalar type if it is part of the union type before defau
 
 In 2021, the proposal to
 [Deprecate boolean to string coercion](https://wiki.php.net/rfc/deprecate-boolean-string-coercion)
-was brought to internals by Ilija Tovilo and myself.
+was brought to internals by Ilija Tovilo and me.
 This proposal suggested deprecating implicit coercions from `bool` to `string`.
 Those can only happen in two type juggling contexts: the function one, and the string one
 (the latter refers to displaying output via `echo` or `print`, string concatenation, and string interpolation).
@@ -83,27 +83,40 @@ and values for INI settings accept a wider set of values.
 
 ## Proposal
 
-We propose to deprecate type coercions to and from `bool` in the
-function type juggling context.
+We propose to deprecate type coercions to and from `bool` in the function type juggling context.
 Providing a boolean value to a parameter/property of a different type very likely points to a programming bug.
 And as we have seen, coercing `string` and `float` values to `bool` is somewhat dubious in nature
 since these values are usually handled with different logic in different domains.
-The only implicit coercion that makes sense most of the time is the one from `int` to `bool`,
-but for consistency's sake we believe this should also be deprecated.
+The only implicit coercion that makes some sense is the one from `int` to `bool`,
+however, it is still likely to point to a bug and for consistency's sake we believe this should also be deprecated.
 
-The long term benefits of this proposal are the following:
+The long-term benefits of this proposal are the following:
 
 - The union type `true|false` is identical to `bool`
-- A potential unification of PHP's typing modes [6]
+- Potential unification of PHP's typing modes [6]
 - Engine simplification
 
-// TODO Show how it impacts conversion table for union types
+This also means that in PHP 9 implicit coercion of scalar values will
+choose the target type in the following order of preference:
+1. `int`
+2. `float`
+3. `string`
+
+Rather than the current order of:
+1. `int`
+2. `float`
+3. `string`
+4. `bool`
+
 
 ## Backward Incompatible Changes
 
+Implicit type coercions to and from `bool` will emit a deprecation notice in PHP 8.5,
+and support removed in PHP 9.0.
+
 ## Version
 
-Next minor version, PHP 8.5, and next major version PHP 9.0.
+Next minor version, PHP 8.5, and next major version, PHP 9.0.
 
 ## Vote
 
@@ -111,20 +124,29 @@ VOTING_SNIPPET
 
 ## Future scope
 
-- Unify PHP's typing modes
+- Unify PHP's typing modes [6]
 - Deprecate `bool` to `string` implicit type conversions in the String Type Juggling Context
-- Deprecate `NAN` being cast to another type. 
+- Deprecate `int` to `float` implicit type conversions in the Function Type Juggling Context when loss of precision occurs
+- Deprecate `float` to `string` implicit type conversions in the Function Type Juggling Context
+- Deprecate `NAN` being cast to another type.
 
 ## References
 
-[1] "Coercion Rules" section of the RFC https://wiki.php.net/rfc/coercive_sth#coercion_rules
+[1]: https://wiki.php.net/rfc/coercive_sth#coercion_rules ("Coercion Rules" section of the RFC)
 
-[2] externals.io link to the mailing list thread "Coercive Scalar Type Hints RFC": https://externals.io/message/83405
+[2]: https://externals.io/message/83405 (externals.io link to the mailing list thread "Coercive Scalar Type Hints RFC")
 
-[3] externals.io link to the mailing list thread "[VOTE][RFC] Coercive Scalar Type Hints": https://externals.io/message/84559
+[3]: https://externals.io/message/84559 (externals.io link to the mailing list thread "\[VOTE]\[RFC] Coercive Scalar Type Hints")
 
-[4] externals.io link to Pierre Joye reply on the mailing list "Coercive Scalar Type Hints RFC" thread: https://externals.io/message/83405#83407
+[4]: https://externals.io/message/83405#83407 (externals.io link to Pierre Joye reply on the mailing list "Coercive Scalar Type Hints RFC" thread)
 
-[5] Comparing Floating Point Numbers, 2012 Edition, Posted on February 25, 2012 by brucedawson: https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/
+[5]: https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/ (Comparing Floating Point Numbers, 2012 Edition, Posted on February 25, 2012 by brucedawson)
 
-[6] "Unify PHP's typing modes (aka remove strict_types declare)" Meta RFC draft: https://github.com/Girgias/unify-typing-modes-rfc
+[6]: https://github.com/Girgias/unify-typing-modes-rfc ("Unify PHP's typing modes \(aka remove strict_types declare\)" Meta RFC draft)
+
+1. "Coercion Rules" section of the RFC https://wiki.php.net/rfc/coercive_sth#coercion_rules
+2. externals.io link to the mailing list thread "Coercive Scalar Type Hints RFC": https://externals.io/message/83405
+3. externals.io link to the mailing list thread "\[VOTE]\[RFC] Coercive Scalar Type Hints": https://externals.io/message/84559
+4. externals.io link to Pierre Joye reply on the mailing list "Coercive Scalar Type Hints RFC" thread: https://externals.io/message/83405#83407
+5. Comparing Floating Point Numbers, 2012 Edition, Posted on February 25, 2012 by brucedawson: https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/
+6. "Unify PHP's typing modes (aka remove strict_types declare)" Meta RFC draft: https://github.com/Girgias/unify-typing-modes-rfc
