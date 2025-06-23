@@ -13,16 +13,36 @@
 PHP has a few type juggling contexts, which are described on the
 [Type Juggling](https://www.php.net/manual/en/language.types.type-juggling.php)
 documentation page.
-The function type juggling context refers to the type coercion that occurs
-when passing a value to a function/method argument, returning a value from
-a function/argument with a return type, and assigning a value to a typed property.
+Currently, there are 6:
 
-In this context only scalar (`int`, `float`, `string`, and `bool`) types can be type juggled.
-However, type juggling to the singleton types `true` and `false` is not possible.
+- Numeric, for arithmetic operators
+- String, for `echo`, `print`, string interpolation, and string concatenation
+- Logical, for conditional statements and logical operators
+- Integral and string, for bitwise operators
+- Comparative, for comparison operators
+- Function, for arguments and return values of functions and typed properties
+
+As this RFC is about amending the semantics of the function type juggling context,
+we will describe it in full.
+
+As said previously, the function type juggling context refers to type coercions that occur
+when passing a value to a function/method argument, returning a value from
+a function with a return type, and assigning a value to a typed property.
+
+In this context only scalar (`int`, `float`, `string`, and `bool`) types
+can be coerced to one of the other scalar types,
+with an additional possibility for `Stringable` objects to be type juggled for a `string` type.
+
 Moreover, it is possible to prevent coercion of scalar types (except for widening of `int` to `float`)
 in this context altogether by using the
 [`strict_types=1`](https://www.php.net/manual/en/language.types.declarations.php#language.types.declarations.strict)
 declare statement in a file.
+
+However, the singleton types `true` and `false` do not permit the coercion of other scalar types to them.
+Meaning that returning `0` from a function that declare a return type of `array|false` causes a `TypeError` to be thrown.
+This behaviour happens even if the `strict_types` declare is not used.
+
+## History and prior discussions
 
 The behaviour of type juggling to and from `bool` has been discussed various times.
 First in the controversial
@@ -45,6 +65,8 @@ calls into question how sensible it is to allow implicit conversions from `float
 Type juggling of strings to `bool` is similarly error-prone. The strings `""` and `"0"`
 are converted to `false`, but `"false"`, `" "`, and other strings which an `(int)` cast converts to `0`
 are coerced to `true`.
+This contrasts to many, if not all, other programming languages where only the empty string `""` is falsy,
+which can be a point of confusion.
 
 In 2020, this topic was briefly approached by Nikita Popov's
 [Union Types 2.0](https://wiki.php.net/rfc/union_types_v2)
@@ -60,15 +82,16 @@ In 2021, the proposal to
 was brought to internals by Ilija Tovilo and me.
 This proposal suggested deprecating implicit coercions from `bool` to `string`.
 Those can only happen in two type juggling contexts: the function one, and the string one
-(the latter refers to displaying output via `echo` or `print`, string concatenation, and string interpolation).
-As the impact from deprecating `bool` to `string` conversion was high, notably within php-src's own test suite,
+(the latter referring `echo`, `print`, string concatenation, and string interpolation as said in the introduction).
+As the impact from deprecating `bool` to `string` conversion was high,
+notably within php-src's own test suite which `echo`s many boolean values,
 we did not bring this proposal to a vote.
 
 In 2022, we proposed to add the
 [true singleton type](https://wiki.php.net/rfc/true-type)
 to PHP. Part of this proposal was to emit a compile time error if the union type
 `true|false` (or the reverse) is used instead of `bool`.
-This is because both the `true` and `false` singleton types do not allow type juggling,
+This is because both the `true` and `false` singleton types do not permit type juggling,
 but the `bool` type does.
 
 Later in 2022, the
@@ -81,14 +104,63 @@ while still providing better type safety and data loss prevention.
 However, the set of accepted values can be considered "arbitrary" as the filter extension,
 and values for INI settings accept a wider set of values.
 
+## Motivation
+
+In our opinion, boolean values being coerced to one of the other scalar types is indicative of a bug in the code.
+This is especially true in PHP where _many_ functions return `false` on failure.
+We even found bugs in php-src's test suite while implementing this RFC
+where `false` was coerced into various scalar types. [7],[8]
+
+Similarly, as seen in the previous section,
+coercing `string` and `float` values to `bool` is somewhat dubious in nature
+as these values are usually handled with different logic depending on the domain,
+and it can also hide bugs, which was the case in some php-src tests. [9]
+
+Therefore, the only reasonable coercion in our opinion is from `int` to `bool`.
+Nonetheless, we believe that deprecating implicit coercions from `int` to `bool`
+is something we should pursue for consistency with the rest of the proposal,
+it would mean the type declaration `true|false` would be identical to `bool`,
+and it is still likely to point to a bug.
+Even if it is common, especially within php-src's test suite, to use `0` and `1` as `false` and `true` respectively.
+
+The final motivation is UNIFYING TYPING MODES
+
+## Counter-arguments
+
+A common counter-argument to the deprecation of implicit coercions from scalars to bool
+is when dealing with external inputs, such a `$_GET` and `$_POST`,
+is that the content of the input does not matter and one only cares if it is truthy or falsy.
+And that this proposal forces the use of `(bool)` cast when not required.
+However, in general the `(bool)` cast *is* required even when `strict_types` is not used.
+It is not possible to trust external inputs, especially if they come from `$_GET` or `$_POST`
+as they may *not* contain a scalar value.
+Indeed, PHP has this convenient feature which allows an `array` to be passed via the query parameters e.g.
+`example.com?colors[]=red&colors[]=blue` gives us `$_GET['colors']` as an array of two elements
+`['red', 'blue']` or via a form in `$_POST`:
+```html
+<form enctype="multipart/form-data" action="submit.php" method="POST">
+    <input name="languages[main]">
+    <input name="languages[secondary]">
+    <input name="languages[fallback]">
+</form>
+```
+which would give us the following `$_POST` array:
+```php
+$_POST = [
+    'languages' => [
+        'main' => 'value1',
+        'secondary' => 'value2',
+        'fallback' => 'value3',
+    ]
+] 
+```
+
+Another counter-argument is that unifying typing modes is not going to happen
+TODO
+
 ## Proposal
 
 We propose to deprecate type coercions to and from `bool` in the function type juggling context.
-Providing a boolean value to a parameter/property of a different type very likely points to a programming bug.
-And as we have seen, coercing `string` and `float` values to `bool` is somewhat dubious in nature
-since these values are usually handled with different logic in different domains.
-The only implicit coercion that makes some sense is the one from `int` to `bool`,
-however, it is still likely to point to a bug and for consistency's sake we believe this should also be deprecated.
 
 The long-term benefits of this proposal are the following:
 
@@ -107,7 +179,6 @@ Rather than the current order of:
 2. `float`
 3. `string`
 4. `bool`
-
 
 ## Backward Incompatible Changes
 
@@ -150,3 +221,6 @@ VOTING_SNIPPET
 4. externals.io link to Pierre Joye reply on the mailing list "Coercive Scalar Type Hints RFC" thread: https://externals.io/message/83405#83407
 5. Comparing Floating Point Numbers, 2012 Edition, Posted on February 25, 2012 by brucedawson: https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/
 6. "Unify PHP's typing modes (aka remove strict_types declare)" Meta RFC draft: https://github.com/Girgias/unify-typing-modes-rfc
+7. "ext/date: Remove implicit bool type coercions in tests" GitHub PR: https://github.com/php/php-src/pull/18891
+8. Diff of file `ext/spl/tests/bug36287.phpt` from php-src commit "ext/spl: Remove bool type coercions in tests": https://github.com/php/php-src/commit/0ab5f70b3cc9705873586657f9910a7dd7d466f4#diff-8e6160f67a736edea82a97e96f05126baf60b9f3ec704ba71fad0ff585cb13a0
+9. Diff of file `ext/zlib/tests/gh16883.phpt` from php-src commit "ext/zlib: Refactor tests (#18887)": https://github.com/php/php-src/commit/5bd18e3fdc1abdedd5c418095fd8a41f77bae146#diff-d3729e7ef900aea0d9fb54384139cf1507e1baab5dd7d69381bc4ba14e8e5b24
