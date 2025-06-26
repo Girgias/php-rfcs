@@ -167,12 +167,12 @@ $_POST = [
 ] 
 ```
 
-Another counter-argument is that unifying typing modes is a futile exercice because it causes unnecessary disruption
+Another counter-argument is that unifying typing modes is a futile exercise because it causes unnecessary disruption
 for those wanting the weak mode semantics, and people wanting the strict mode semantics are unwilling to compromise.
-However, users that are unwilling to comprise would be using static analysis tools that are _stricter_ than the strict type mode.
-Tools which were not widely developed 10 years ago when 7.0 was released.
-And in our experience seeing the impact of the RFC on php-src and Symfony implicit coercions to/and from bool,
-except `int` to `bool`, "almost always" hides a bug in the code.  
+However, users that are unwilling to compromise would be using static analysis tools that are _stricter_ than the strict type mode.
+These tools were not widely developed 10 years ago when PHP 7.0 was released.
+And in our experience seeing the impact of the RFC on php-src and Symfony, implicit coercion to/and from bool
+(except `int` to `bool`) "almost always" hides a bug in the code.
 
 ## Proposal
 
