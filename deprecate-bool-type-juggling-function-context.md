@@ -5,7 +5,7 @@
 - Author: Gina Peter Banyard <girgias@php.net>
 - Status: Under Discussion
 - Target Version: PHP 8.5
-- Implementation: TBD
+- Implementation: https://github.com/php/php-src/pull/18879
 - First Published at: https://wiki.php.net/rfc/deprecate-function-bool-type-juggling
 
 ## Introduction
@@ -123,7 +123,19 @@ it would mean the type declaration `true|false` would be identical to `bool`,
 and it is still likely to point to a bug.
 Even if it is common, especially within php-src's test suite, to use `0` and `1` as `false` and `true` respectively.
 
-The final motivation is UNIFYING TYPING MODES
+The final motivation is that this change is, in our opinion,
+the last remaining hurdle for a potential proposal to unify PHP's typing modes. [6]
+The problems with PHP's split typing modes are somewhat well-known, but we will repeat some of them here:
+
+- Too strict may lead to too lax
+  - Perceived need for "strict casts"
+  - The `Stringable` interface was added to allow objects which implement `__toString()` to still be allowed in functions wanting a string
+- Closures/callables follow the typing mode in which they were declared, and not the typing mode where they are used
+  - An important consequence of this is that any Closure called by the engine is done in weak mode
+- Limited scope of the `declare(strict_types=1)` statement
+  - Users don't know what it does 
+  - Follow-up proposals to add more to restrict type juggling in different contexts [10]
+- Potential complications with moving the implementation of C functions into plain PHP
 
 ## Counter-arguments
 
@@ -155,8 +167,12 @@ $_POST = [
 ] 
 ```
 
-Another counter-argument is that unifying typing modes is not going to happen
-TODO
+Another counter-argument is that unifying typing modes is a futile exercice because it causes unnecessary disruption
+for those wanting the weak mode semantics, and people wanting the strict mode semantics are unwilling to compromise.
+However, users that are unwilling to comprise would be using static analysis tools that are _stricter_ than the strict type mode.
+Tools which were not widely developed 10 years ago when 7.0 was released.
+And in our experience seeing the impact of the RFC on php-src and Symfony implicit coercions to/and from bool,
+except `int` to `bool`, "almost always" hides a bug in the code.  
 
 ## Proposal
 
@@ -168,7 +184,7 @@ The long-term benefits of this proposal are the following:
 - Potential unification of PHP's typing modes [6]
 - Engine simplification
 
-This also means that in PHP 9 implicit coercion of scalar values will
+This also means that in PHP 9, implicit coercion of scalar values will
 choose the target type in the following order of preference:
 1. `int`
 2. `float`
@@ -183,7 +199,29 @@ Rather than the current order of:
 ## Backward Incompatible Changes
 
 Implicit type coercions to and from `bool` will emit a deprecation notice in PHP 8.5,
-and support removed in PHP 9.0.
+and support for it removed in PHP 9.0.
+
+Some examples of function signatures which would cause deprecation notices to be emitted if `true` or `false` is
+passed to them:
+
+```php
+function example1(?int $v) {}
+function example2(?string $v) {}
+function example3(?float $v) {}
+function example4(int|string $v) {}
+function example5(int|float $v) {}
+function example6(float|string $v) {}
+function example7(int|float|string $v) {}
+```
+
+## Unaffected PHP Functionality
+
+- Type juggling for logical operators (e.g. `&&`, `||`) is not affected nor changed.
+- Type juggling for `echo`, `print`, string concatenation, and string interpolation is not affected nor changed.
+- Type juggling for arithmetic operators (e.g. `+`, `/`) is not affected nor changed.
+- Type juggling for array keys is not affected nor changed.
+- Type juggling for bitwise operators (e.g. `&`, `|`) is not affected nor changed.
+- Type juggling for comparison operators (e.g. `==`, `>`) is not affected nor changed.
 
 ## Version
 
@@ -195,11 +233,14 @@ VOTING_SNIPPET
 
 ## Future scope
 
+These are relevant topics, which may be addressed in other RFCs:
+
 - Unify PHP's typing modes [6]
 - Deprecate `bool` to `string` implicit type conversions in the String Type Juggling Context
 - Deprecate `int` to `float` implicit type conversions in the Function Type Juggling Context when loss of precision occurs
 - Deprecate `float` to `string` implicit type conversions in the Function Type Juggling Context
 - Deprecate `NAN` being cast to another type.
+- Change array offsets to use the semantics of the function type juggling mode
 
 ## References
 
@@ -215,6 +256,14 @@ VOTING_SNIPPET
 
 [6]: https://github.com/Girgias/unify-typing-modes-rfc ("Unify PHP's typing modes \(aka remove strict_types declare\)" Meta RFC draft)
 
+[7]: https://github.com/php/php-src/pull/18891 ("ext/date: Remove implicit bool type coercions in tests" GitHub PR)
+
+[8]: https://github.com/php/php-src/commit/0ab5f70b3cc9705873586657f9910a7dd7d466f4#diff-8e6160f67a736edea82a97e96f05126baf60b9f3ec704ba71fad0ff585cb13a0 (Diff of file `ext/spl/tests/bug36287.phpt` from php-src commit "ext/spl: Remove bool type coercions in tests")
+
+[9]: https://github.com/php/php-src/commit/5bd18e3fdc1abdedd5c418095fd8a41f77bae146#diff-d3729e7ef900aea0d9fb54384139cf1507e1baab5dd7d69381bc4ba14e8e5b24 (Diff of file `ext/zlib/tests/gh16883.phpt` from php-src commit "ext/zlib: Refactor tests \(#18887\)")
+
+[10]: https://wiki.php.net/rfc/strict_operators (Strict operators directive RFC)
+
 1. "Coercion Rules" section of the RFC https://wiki.php.net/rfc/coercive_sth#coercion_rules
 2. externals.io link to the mailing list thread "Coercive Scalar Type Hints RFC": https://externals.io/message/83405
 3. externals.io link to the mailing list thread "\[VOTE]\[RFC] Coercive Scalar Type Hints": https://externals.io/message/84559
@@ -224,3 +273,4 @@ VOTING_SNIPPET
 7. "ext/date: Remove implicit bool type coercions in tests" GitHub PR: https://github.com/php/php-src/pull/18891
 8. Diff of file `ext/spl/tests/bug36287.phpt` from php-src commit "ext/spl: Remove bool type coercions in tests": https://github.com/php/php-src/commit/0ab5f70b3cc9705873586657f9910a7dd7d466f4#diff-8e6160f67a736edea82a97e96f05126baf60b9f3ec704ba71fad0ff585cb13a0
 9. Diff of file `ext/zlib/tests/gh16883.phpt` from php-src commit "ext/zlib: Refactor tests (#18887)": https://github.com/php/php-src/commit/5bd18e3fdc1abdedd5c418095fd8a41f77bae146#diff-d3729e7ef900aea0d9fb54384139cf1507e1baab5dd7d69381bc4ba14e8e5b24
+10. Strict operators directive RFC: https://wiki.php.net/rfc/strict_operators
