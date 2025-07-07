@@ -39,7 +39,7 @@ in this context altogether by using the
 declare statement in a file.
 
 However, the singleton types `true` and `false` do not permit the coercion of other scalar types to them.
-Meaning that returning `0` from a function that declare a return type of `array|false` causes a `TypeError` to be thrown.
+Meaning that returning `0` from a function that declares a return type of `array|false` causes a `TypeError` to be thrown.
 This behaviour happens even if the `strict_types` declare is not used.
 
 ## History and prior discussions
