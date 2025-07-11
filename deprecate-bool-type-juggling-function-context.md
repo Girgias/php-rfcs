@@ -35,7 +35,7 @@ with an additional possibility for `Stringable` objects to be type juggled for a
 
 Moreover, it is possible to prevent coercion of scalar types (except for widening of `int` to `float`)
 in this context altogether by using the
-[`strict_types=1`](https://www.php.net/manual/en/language.types.declarations.php#language.types.declarations.strict)
+[strict_types=1](https://www.php.net/manual/en/language.types.declarations.php#language.types.declarations.strict)
 declare statement in a file.
 
 However, the singleton types `true` and `false` do not permit the coercion of other scalar types to them.
