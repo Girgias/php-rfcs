@@ -119,9 +119,9 @@ and it can also hide bugs, which was the case in some php-src tests. [9]
 Therefore, the only reasonable coercion in our opinion is from `int` to `bool`.
 Nonetheless, we believe that deprecating implicit coercions from `int` to `bool`
 is something we should pursue for consistency with the rest of the proposal.
-As it would simplify PHP's type system by making the type declaration `true|false` isomorphic to `bool`.
-While common, especially within php-src's test suite, 
-to use `0`/`1` as `false`/`true` respectively we deem those to be inaccuracies.
+This would simplify PHP's type system by making the type declaration `true|false` isomorphic to `bool`.
+While it is common (especially within php-src's test suite)
+to use `0`/`1` as `false`/`true` respectively, we deem those to be inaccuracies.
 
 The final motivation is that this change is, in our opinion,
 the last remaining hurdle for a potential proposal to unify PHP's typing modes. [6]
@@ -148,8 +148,8 @@ when passed as an argument to a parameter with a `bool` type declaration.
 As such a `(bool)` cast is required in general to achieve this behaviour.
 
 Another common counter-argument
-is when dealing with external inputs, such a `$_GET` and `$_POST`,
-is that the content of the input does not matter and one only cares if it is truthy or falsy.
+is that when dealing with external inputs, such a `$_GET` and `$_POST`,
+the content of the input does not matter and one only cares if it is truthy or falsy.
 And that this proposal forces the use of `(bool)` cast when not required.
 However, in general the `(bool)` cast *is* required even when `strict_types` is not used.
 It is not possible to trust external inputs, especially if they come from `$_GET` or `$_POST`
