@@ -1,6 +1,6 @@
 # PHP RFC: Deprecate type juggling to and from bool type within the function type juggling context
 
-- Version: 0.1
+- Version: 0.2
 - Date: 2025-06-02
 - Author: Gina Peter Banyard <girgias@php.net>
 - Status: Under Discussion
@@ -149,7 +149,7 @@ as they may *not* contain a scalar value.
 Indeed, PHP has this convenient feature which allows an `array` to be passed via the query parameters e.g.
 `example.com?colors[]=red&colors[]=blue` gives us `$_GET['colors']` as an array of two elements
 `['red', 'blue']` or via a form in `$_POST`:
-```html
+```php
 <form enctype="multipart/form-data" action="submit.php" method="POST">
     <input name="languages[main]">
     <input name="languages[secondary]">
