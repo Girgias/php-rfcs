@@ -1,6 +1,6 @@
 # PHP RFC: Deprecate type juggling to and from bool type within the function type juggling context
 
-- Version: 0.2
+- Version: 0.3
 - Date: 2025-06-02
 - Author: Gina Peter Banyard <girgias@php.net>
 - Status: Under Discussion
@@ -118,10 +118,10 @@ and it can also hide bugs, which was the case in some php-src tests. [9]
 
 Therefore, the only reasonable coercion in our opinion is from `int` to `bool`.
 Nonetheless, we believe that deprecating implicit coercions from `int` to `bool`
-is something we should pursue for consistency with the rest of the proposal,
-it would mean the type declaration `true|false` would be identical to `bool`,
-and it is still likely to point to a bug.
-Even if it is common, especially within php-src's test suite, to use `0` and `1` as `false` and `true` respectively.
+is something we should pursue for consistency with the rest of the proposal.
+As it would simplify PHP's type system by making the type declaration `true|false` isomorphic to `bool`.
+While common, especially within php-src's test suite, 
+to use `0`/`1` as `false`/`true` respectively we deem those to be inaccuracies.
 
 The final motivation is that this change is, in our opinion,
 the last remaining hurdle for a potential proposal to unify PHP's typing modes. [6]
@@ -140,6 +140,14 @@ The problems with PHP's split typing modes are somewhat well-known, but we will 
 ## Counter-arguments
 
 A common counter-argument to the deprecation of implicit coercions from scalars to bool
+is that a parameter declared with a `bool` type should act similar to an `if` statement.
+However, those two cases already differ quite significantly in behaviour as `if` (and other conditional) statements
+follow the logical type juggling context rather than the function one.
+Meaning values of type `null`, `array`, `resource`, and `object` are accepted for `if` statements but rejected
+when passed as an argument to a parameter with a `bool` type declaration.
+As such a `(bool)` cast is required in general to achieve this behaviour.
+
+Another common counter-argument
 is when dealing with external inputs, such a `$_GET` and `$_POST`,
 is that the content of the input does not matter and one only cares if it is truthy or falsy.
 And that this proposal forces the use of `(bool)` cast when not required.
