@@ -1,6 +1,6 @@
 # PHP RFC: Deprecate type juggling to and from bool type within the function type juggling context
 
-- Version: 0.3
+- Version: 0.4
 - Date: 2025-06-02
 - Author: Gina Peter Banyard <girgias@php.net>
 - Status: Under Discussion
@@ -118,8 +118,11 @@ and it can also hide bugs, which was the case in some php-src tests. [9]
 
 Therefore, the only reasonable coercion in our opinion is from `int` to `bool`.
 Nonetheless, we believe that deprecating implicit coercions from `int` to `bool`
-is something we should pursue for consistency with the rest of the proposal.
-This would simplify PHP's type system by making the type declaration `true|false` isomorphic to `bool`.
+is still something that should be done, not only out of consistency with the rest of the proposal,
+but because `false` is often used as a sentinel return value for errors.
+This is such error-prone behaviour that the PHP documentation specifically warns about such cases
+(e.g. `strpos()` or `preg_match()`).
+Moreover, this would simplify PHP's type system by making the type declaration `true|false` isomorphic to `bool`.
 While it is common (especially within php-src's test suite)
 to use `0`/`1` as `false`/`true` respectively, we deem those to be inaccuracies.
 
@@ -175,12 +178,12 @@ $_POST = [
 ] 
 ```
 
-Another counter-argument is that unifying typing modes is a futile exercise because it causes unnecessary disruption
+A final counter-argument is that unifying typing modes is a futile exercise because it causes unnecessary disruption
 for those wanting the weak mode semantics, and people wanting the strict mode semantics are unwilling to compromise.
 However, users that are unwilling to compromise would be using static analysis tools that are _stricter_ than the strict type mode.
 These tools were not widely developed 10 years ago when PHP 7.0 was released.
 And in our experience seeing the impact of the RFC on php-src and Symfony, implicit coercion to/and from bool
-(except `int` to `bool`) "almost always" hides a bug in the code.
+(except `int` to `bool` and even then) "almost always" hides a bug in the code.
 
 ## Proposal
 
@@ -206,7 +209,10 @@ Rather than the current order of:
 
 ## Backward Incompatible Changes
 
-Implicit type coercions to and from `bool` will emit a deprecation notice in PHP 8.5,
+For code enabling the `strict_types` declare there is no impact, except for callbacks that are called by the engine.
+
+If this declare statement is not enabled,
+implicit type coercions to and from `bool` will emit a deprecation notice in PHP 8.5,
 and support for it removed in PHP 9.0.
 
 Some examples of function signatures which would cause deprecation notices to be emitted if `true` or `false` is
@@ -235,10 +241,6 @@ function example7(int|float|string $v) {}
 
 Next minor version, PHP 8.5, and next major version, PHP 9.0.
 
-## Vote
-
-VOTING_SNIPPET
-
 ## Future scope
 
 These are relevant topics, which may be addressed in other RFCs:
@@ -247,8 +249,21 @@ These are relevant topics, which may be addressed in other RFCs:
 - Deprecate `bool` to `string` implicit type conversions in the String Type Juggling Context
 - Deprecate `int` to `float` implicit type conversions in the Function Type Juggling Context when loss of precision occurs
 - Deprecate `float` to `string` implicit type conversions in the Function Type Juggling Context
-- Deprecate `NAN` being cast to another type.
+- Warn `NAN` being cast to another type.
 - Change array offsets to use the semantics of the function type juggling mode
+- Singleton integer types
+- Singleton string types
+
+## Rejected Features
+
+One alternative proposal is to relax the `true` and `false` tags to allow type coercions.
+We reject this proposal as it goes against the design principle that introduced these singleton types
+and this behaviour being the correct one if we propose to allow integers and strings to be used as singleton types.
+Something that would be required if we desire to support array shapes and other sort of dependent types.
+
+## Vote
+
+VOTING_SNIPPET
 
 ## References
 
