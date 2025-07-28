@@ -33,6 +33,8 @@ const REGEXES = [
     // Clean-up
     // DokuWiki doesn't tolerate code in titles
     '/^(={1,6}.*)(?:<php>)(.*)(?:<\/php>)(.*={1,6})$/m' => '${1}${2}${3}',
+    // Get rid of MD references
+    '/^(\[\d+\]:.*)$/m' => ''
 ];
 
 $TITLE_START_OFFSET = strlen('# PHP RFC: ');
