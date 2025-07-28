@@ -1,6 +1,6 @@
 # PHP RFC: Warnings for PHP 8.5
 
-- Version: 0.1
+- Version: 0.2
 - Date: 2025-07-14
 - Author: Gina Peter Banyard <girgias@php.net>
 - Status: Under Discussion
@@ -17,6 +17,7 @@ The following list provides a short overview of the warnings being introduced,
 while more detailed explanation is provided in the Proposal section:
 
 - Coercing `NAN` to other types
+- Casting out of range `floats` to `int`
 - Destructuring non-`array` values
 - Using offsets on non-container values in `isset()`/`empty()`
 - Using invalid offset types when checking string offsets with `isset()`/`empty()`
@@ -43,6 +44,64 @@ we propose to emit the following warning when `NAN` is coerced (be that implicit
 This affects passing `NAN` as an argument to parameters which do not declare `float` as a type, all casting operators,
 logical operators, if statements, and ternary operator.
 
+### Casting out of range floats to int
+
+- Author: Gina Peter Banyard <girgias@php.net>
+
+Floating point value outside the range of a PHP integer behave in extremely confusing ways.
+
+For example, values that are slightly larger than the maximal integer value can be cast to negative numbers:
+
+```php
+var_dump(PHP_INT_MAX);
+$a = PHP_INT_MAX + 25;
+var_dump($a);
+var_dump((int) $a);
+```
+outputs:
+```php
+int(9223372036854775807)
+float(9.223372036854776E+18)
+int(-9223372036854775808)
+```
+
+Similarly, values that are slightly lower than the smallest representable integer value can be cast to positive numbers:
+```php
+var_dump(PHP_INT_MIN);
+$b = PHP_INT_MIN - 4874;
+var_dump($b);
+var_dump((int) $b);
+```
+outputs:
+```php
+int(-9223372036854775808)
+float(-9.22337203685478E+18)
+int(9223372036854771712)
+```
+
+And more confusing the values `INF` and `-INF` when cast to int produce the integer `0`:
+```php
+$p = 255**255;
+var_dump($p);
+var_dump((int) $p);
+
+$m = -255**255;
+var_dump($m);
+var_dump((int) $m);
+```
+outputs:
+```php
+float(INF)
+int(0)
+float(-INF)
+int(0)
+```
+
+As this behaviour is extremely confusing and bug prone, we propose to emit the following warning when out of range floats
+are cast to int:
+
+> Warning: non-representable float was cast to int
+
 ### Destructuring non-array values
 
 - Author: Gina Peter Banyard <girgias@php.net>
@@ -60,6 +119,11 @@ no `Error` is thrown and each variable is assigned `null`.
 We propose to emit the following warning when destructuring non-array values:
 
 > Warning: Cannot use TYPE as array
+
+We do not propose to warn when using `null` as destructuring can be done in a conditional,
+and while doing so can be seen as a dubious practice until better language features, such as the declined
+[Destructuring Coalesce](https://wiki.php.net/rfc/destructuring_coalesce)
+are available this should still be permitted.
 
 ### Using offsets on non-container values in isset()/empty()
 
