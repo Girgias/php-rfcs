@@ -43,11 +43,12 @@ define('TITLE_START_OFFSET', $TITLE_START_OFFSET);
 const VOTING_SNIPPET_CODE = <<<'VOTING'
 As per the voting RFC a yes/no vote with a 2/3 majority is needed for this proposal to be accepted.
 
-Voting started on 2024-XX-XX and will end on 2024-XX-XX.
- 
-<doodle title="Accept RFC_TITLE RFC?" auth="girgias" voteType="single" closed="true">
+Voting started on 2026-XX-XX and will end on 2026-XX-XX.
+
+<doodle title="Accept RFC_TITLE RFC?" auth="girgias" voteType="single" closed="true" closeon="2026-XX-XXT12:00:00Z"> 
    * Yes
    * No
+   * Abstain
 </doodle>
 VOTING;
 
