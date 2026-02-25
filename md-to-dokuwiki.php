@@ -45,7 +45,7 @@ As per the voting RFC a yes/no vote with a 2/3 majority is needed for this propo
 
 Voting started on 2026-XX-XX and will end on 2026-XX-XX.
 
-<doodle title="Accept RFC_TITLE RFC?" auth="girgias" voteType="single" closed="true" closeon="2026-XX-XXT12:00:00Z"> 
+<doodle title="Accept RFC_TITLE?" auth="girgias" voteType="single" closed="true" closeon="2026-XX-XXT12:00:00Z"> 
    * Yes
    * No
    * Abstain
@@ -84,7 +84,14 @@ function convert_md_to_php_dokuwiki(string $input): string {
 
     // Voting snippet
     $offset_first_newline = strpos($input, "\n");
-    $title = substr($input, TITLE_START_OFFSET, $offset_first_newline-TITLE_START_OFFSET);
+    /* Policy RFC */
+    if (str_starts_with($input, '# PHP Policy RFC: ')) {
+        preg_match('#https://github.com/php/policies/pull/(\d+)#m', $input, $matches);
+        $pr_num = $matches[1];
+        $title = 'php/policies PR #' . $pr_num;
+    } else {
+        $title = substr($input, TITLE_START_OFFSET, $offset_first_newline-TITLE_START_OFFSET) . ' RFC';
+    }
     $voting_code = str_replace('RFC_TITLE', $title, VOTING_SNIPPET_CODE);
     $output = str_replace(
         'VOTING_SNIPPET',
