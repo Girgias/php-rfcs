@@ -1,4 +1,4 @@
-# PHP Policy RFC: exempt input type and value validation from BC Break policy
+# PHP Policy RFC: Exempt input type and value validation from BC Break policy
 
 - Version: 0.1
 - Date: 2026-02-18
@@ -23,12 +23,9 @@ We deem this position to be nonsensical as this is willfully allowing broken and
 
 It should be noted that adding those `TypeError` and `ValueError`s is *already* permitted according to our policy:
 
-> Fixing clearly incorrect or unintended behavior,
-> even if it changes the output or side effects of a function,
-> is not automatically considered a BC break.
+> Fixing clearly incorrect or unintended behavior, even if it changes the output or side effects of a function, is not automatically considered a BC break.
 > This applies to behavior that was buggy, undocumented, or inconsistent with expectations or similar functionality.
-> The potential impact of such a fix SHOULD be evaluated, and based on that,
-> the change MAY be treated as a BC break if it is likely to affect real-world code in significant or disruptive ways.
+> The potential impact of such a fix SHOULD be evaluated, and based on that, the change MAY be treated as a BC break if it is likely to affect real-world code in significant or disruptive ways.
 
 However, considering the recurrent pushback we deem it necessary to clarify the policy to exempt those type of changes from the BC policy.
 
@@ -44,7 +41,7 @@ This is *explicitly* recommended *against* in our BC policy:
 
 Finally, lack of input validation has resulted in security vulnerabilities multiple times.
 [1:https://github.com/php/php-src/security/advisories/GHSA-www2-q4fc-65wf]
-[2:https://github.com/php/php-src/security/advisories/GHSA-3cr5-j632-f35r]
+[1:https://github.com/php/php-src/security/advisories/GHSA-3cr5-j632-f35r]
 
 ## Proposal
 
@@ -83,11 +80,11 @@ VOTING_SNIPPET
 
 ## Patches and Tests
 
-* https://github.com/php/policies/pull/27
+  * https://github.com/php/policies/pull/27
 
 ## Implementation
 
-* TBD
+  * TBD
 
 ## Rejected Features
 
@@ -97,5 +94,5 @@ None.
 
 ## References
 
-* Discussion thread: TBD
-* Voting thread: TBD
+  * Discussion thread: TBD
+  * Voting thread: TBD
