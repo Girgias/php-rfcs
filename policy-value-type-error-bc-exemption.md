@@ -23,13 +23,13 @@ This was also supported by our current policy:
 > This applies to behavior that was buggy, undocumented, or inconsistent with expectations or similar functionality.
 > The potential impact of such a fix SHOULD be evaluated, and based on that, the change MAY be treated as a BC break if it is likely to affect real-world code in significant or disruptive ways.
 
-However, recently there was an increased amount of unconditional requests for an RFC for adding the validation,
+However, recently there has been an increased amount of unconditional requests for an RFC for adding the validation,
 even if it is unlikely to “affect real world in significant ways”.
 This adversely impacts day-to-day maintenance of the php-src monorepo,
 as clean-up passes now take multiple weeks and adds unnecessary friction for new contributions.
 
 On the contrary, not adding the validation is making silent BC breaks more likely.
-An example demonstrating this is a function that accepted "int-based enum constants".
+An example demonstrating this is a function that has a parameter using "int-based enum constants" and/or bitmasks.
 Indeed, if a user provides a non-existent value, such as `8`,
 when there only exists a few constants for predefined values
 (e.g `1`, `2`, `4` (typical for bitmasks))
@@ -44,7 +44,8 @@ We therefore consider it necessary to explicitly include this in the policy.
 Finally, we note that the lack of input validation has resulted in security vulnerabilities multiple times.
 [1:https://github.com/php/php-src/security/advisories/GHSA-www2-q4fc-65wf]
 [1:https://github.com/php/php-src/security/advisories/GHSA-3cr5-j632-f35r]
-Whose fixes were the addition of `ValueError`s being thrown in stable releases,
+[1:https://github.com/php/php-src/security/advisories/GHSA-h96m-rvf9-jgm2]
+Whose fixes were the addition of `Error`s being thrown in stable releases,
 this further indicates that these sort of behavioural changes should be tackled when discovered rather than delayed until they cause security vulnerabilities.
 
 ## Proposal
