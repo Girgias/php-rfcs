@@ -1,7 +1,7 @@
 # PHP Policy RFC: Exempt input type and value validation from BC Break policy
 
 - Version: 0.1
-- Date: 2026-02-18
+- Date: 2026-03-02
 - Author: Gina Peter Banyard <girgias@php.net>
 - Status: Under Discussion
 - First Published at: https://wiki.php.net/rfc/policy-exempt-type-value-error-bc-policy
