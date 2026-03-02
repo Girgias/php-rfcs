@@ -24,9 +24,9 @@ This was also supported by our current policy:
 > The potential impact of such a fix SHOULD be evaluated, and based on that, the change MAY be treated as a BC break if it is likely to affect real-world code in significant or disruptive ways.
 
 However, recently there has been an increased amount of unconditional requests for an RFC for adding the validation,
-even if it is unlikely to “affect real world in significant ways”.
+even if it is unlikely to “affect real-world code in significant or disruptive ways”.
 This adversely impacts day-to-day maintenance of the php-src monorepo,
-as clean-up passes now take multiple weeks and adds unnecessary friction for new contributions.
+as clean-up passes now take multiple weeks and adds unnecessary friction for new contributors.
 
 On the contrary, not adding the validation is making silent BC breaks more likely.
 An example demonstrating this is a function that has a parameter using "int-based enum constants" and/or bitmasks.
