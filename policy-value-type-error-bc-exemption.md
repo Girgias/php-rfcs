@@ -101,5 +101,5 @@ None.
 
 ## References
 
-  * Discussion thread: TBD
+  * Discussion thread: https://news-web.php.net/php.internals/130221
   * Voting thread: TBD
